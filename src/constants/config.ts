@@ -39,7 +39,7 @@ export const STORAGE_CONFIG = {
   maxImageSize: 5 * 1024 * 1024,    // 5MB
   maxDocumentSize: 10 * 1024 * 1024, // 10MB
   maxImagesPerProduct: 10,
-  allowedImageTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+  allowedImageTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'] as const,
   allowedDocumentTypes: ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'],
 } as const
 
