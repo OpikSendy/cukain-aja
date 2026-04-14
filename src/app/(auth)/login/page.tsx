@@ -1,32 +1,41 @@
 /**
- * app/(auth)/register/page.tsx — RSC
+ * app/(auth)/login/page.tsx — RSC
  */
 
-import { RegisterForm } from '@/components/auth/RegisterForm'
+import { LoginForm } from '@/components/auth/LoginForm'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Daftar — Cukain Aja',
-  description: 'Buat akun Cukain Aja dan mulai jual beli barang bea cukai resmi',
+  title: 'Masuk — Cukain Aja',
 }
 
-export default function RegisterPage() {
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams: { error?: string }
+}) {
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-[#0B1D3A] tracking-tight">
-          Buat Akun Baru
+          Selamat Datang Kembali
         </h1>
         <p className="text-slate-500 text-sm mt-1">
-          Sudah punya akun?{' '}
-          <Link href="/login" className="text-[#0B1D3A] font-semibold hover:text-[#C8960C] transition-colors">
-            Masuk di sini
+          Belum punya akun?{' '}
+          <Link href="/register" className="text-[#0B1D3A] font-semibold hover:text-[#C8960C] transition-colors">
+            Daftar sekarang
           </Link>
         </p>
       </div>
 
-      <RegisterForm />
+      {searchParams.error && (
+        <div className="px-4 py-3 bg-red-50 border border-red-100 rounded-xl">
+          <p className="text-red-600 text-sm">{searchParams.error}</p>
+        </div>
+      )}
+
+      <LoginForm />
     </div>
   )
 }
