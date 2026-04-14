@@ -1,272 +1,353 @@
-# 🤖 Claude AI Agent Configuration
+# CLAUDE.md — Cukain Aja · AI Agent System Prompt
 
-This file configures Claude AI agents for the `cukain-aja` project. These agents are used to automate development tasks, code generation, and project management.
+> File ini dibaca otomatis oleh Claude Code dan AI agent lain yang mendukung CLAUDE.md.
+> Letakkan file ini di root project. Update setiap kali ada perubahan arsitektur besar.
 
-## 📋 Table of Contents
+---
 
-- [Agent Configuration](#agent-configuration)
-- [Available Agents](#available-agents)
-- [Agent Descriptions](#agent-descriptions)
-- [Usage](#usage)
-- [Customization](#customization)
+## 1. Identitas Project
 
-## 🤖 Agent Configuration
+| Key | Value |
+|-----|-------|
+| **Nama** | Cukain Aja |
+| **Domain** | Marketplace B2C barang lelang / sitaan bea cukai Indonesia |
+| **Stack** | Next.js 14 App Router · Supabase · TypeScript · Tailwind CSS · shadcn/ui · Midtrans |
+| **Phase saat ini** | MVP — fondasi `lib/` sedang dibangun |
+| **Target deploy** | Vercel (frontend) + Supabase (backend) |
 
-| Agent Name | Description | Purpose |
-|------------|-------------|---------|
-| **Product Manager** | Product Manager | Defines product vision, roadmap, and feature requirements |
-| **Project Manager** | Project Manager | Manages project timeline, tasks, and resources |
-| **UX/UI Designer** | UX/UI Designer | Creates wireframes, mockups, and user interfaces |
-| **Frontend Developer** | Frontend Developer | Builds user-facing interfaces with React/Next.js |
-| **Backend Developer** | Backend Developer | Develops server-side logic and APIs |
-| **DevOps Engineer** | DevOps Engineer | Manages infrastructure, CI/CD, and deployment |
-| **QA Engineer** | QA Engineer | Tests code, identifies bugs, and ensures quality |
-| **Technical Writer** | Technical Writer | Creates documentation and user guides |
+---
 
-## 📋 Available Agents
+## 2. Arsitektur Sistem
 
-### 1. Product Manager
+```
+┌─────────────────────────────────────────────┐
+│              Next.js App Router              │
+│                                             │
+│  (public)  (auth)  (user)  (seller)  (admin)│
+│     │         │      │       │          │   │
+│     └─────────┴──────┴───────┴──────────┘   │
+│                    middleware.ts             │
+│              (route guard by role)           │
+└────────────────────┬────────────────────────┘
+                     │
+        ┌────────────┴────────────┐
+        │                         │
+   lib/actions/             lib/services/
+  (Server Actions)         (Third Party)
+        │                         │
+        └────────────┬────────────┘
+                     │
+              Supabase Client
+         (Auth · DB · Storage · Realtime)
+```
 
-**Purpose:** Defines product vision, roadmap, and feature requirements
+### Prinsip Arsitektur
 
-**Key Responsibilities:**
-- Market research and competitive analysis
-- Feature prioritization and roadmap planning
-- User story creation and backlog management
-- Product strategy and positioning
+- **RSC by default** — semua page adalah Server Component kecuali butuh interaktivitas
+- **Server Actions untuk semua mutasi** — tidak ada fetch ke API route untuk data mutation
+- **RLS adalah garis pertahanan pertama** — tapi server action tetap wajib validasi session
+- **Client Component hanya untuk UI state** — form, realtime, animation
+- **Tidak ada business logic di client** — semua di `lib/actions/` atau `lib/services/`
 
-**Usage Example:**
+---
+
+## 3. Role Sistem
+
+```
+guest   → hanya bisa lihat produk public & auction aktif
+user    → bisa beli, ikut lelang, lihat order
+seller  → upload produk, dokumen, kelola auction (harus di-approve admin)
+admin   → approve seller, verifikasi produk, monitor semua transaksi
+```
+
+**Status flow:**
+
+```
+User register → status: pending → admin approve → status: active
+Produk upload → status: draft → submit → pending → admin approve → approved
+Auction       → status: upcoming → active (saat start_time) → ended (saat end_time)
+```
+
+---
+
+## 4. Database Schema
+
+### Enum Types
+
+```sql
+user_role:         user | seller | admin
+user_status:       pending | active | suspended
+product_type:      fixed | auction
+product_status:    draft | pending | approved | rejected | sold
+doc_type:          invoice | beacukai | lainnya
+verification_status: pending | approved | rejected
+auction_status:    upcoming | active | ended
+order_status:      pending | paid | shipped | completed | canceled
+```
+
+### Tabel Utama & Relasi
+
+```
+profiles (extends auth.users)
+  └── products (seller_id → profiles.id)
+        ├── product_images (product_id)
+        ├── product_categories (pivot: product_id ↔ category_id)
+        ├── documents (product_id) — private bucket
+        ├── verifications (product_id, 1:1)
+        └── auctions (product_id, 1:1 optional)
+              └── bids (auction_id, user_id)
+
+orders (user_id → profiles.id)
+  ├── order_items (order_id, product_id)
+  └── payments (order_id)
+```
+
+### RLS Active
+
+Semua tabel sudah RLS. Helper functions tersedia di DB:
+- `get_user_role()` → user_role
+- `is_admin()` → boolean
+- `is_seller()` → boolean
+
+---
+
+## 5. Struktur Folder
+
+```
+src/
+├── app/
+│   ├── (auth)/login · register
+│   ├── (public)/page · products/[id] · auctions/[id]
+│   ├── (user)/dashboard · orders/[id] · profile
+│   ├── (seller)/dashboard · products/new · products/[id]/edit · auctions/[id]/manage
+│   └── (admin)/dashboard · verifications · users · products
+│
+├── components/
+│   ├── ui/              ← shadcn (jangan dimodifikasi manual)
+│   ├── shared/          ← ProductCard · AuctionTimer · StatusBadge
+│   ├── auction/         ← BidForm · BidHistory
+│   └── product/         ← ProductForm · DocumentUpload
+│
+├── lib/
+│   ├── supabase/        ← client.ts · server.ts
+│   ├── actions/         ← auth · products · auctions · orders · payments
+│   ├── services/        ← midtrans · storage
+│   ├── hooks/           ← useAuction · useAuth
+│   ├── types/           ← database.ts (generated) · index.ts (custom)
+│   └── utils/           ← format · validators
+│
+├── middleware.ts
+└── constants/config.ts
+```
+
+---
+
+## 6. Konvensi Kode
+
+### Return Type Semua Actions
+
+```typescript
+type ActionResult<T = void> = {
+  data: T | null
+  error: string | null
+}
+```
+
+**Wajib dipakai di semua server actions. Tidak boleh throw error langsung ke client.**
+
+### Server Action Template
+
+```typescript
+'use server'
+import { createClient } from '@/lib/supabase/server'
+
+export async function actionName(input: InputType): Promise<ActionResult<ReturnType>> {
+  const supabase = await createClient()
+
+  // 1. Selalu validasi session dulu
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { data: null, error: 'Unauthorized' }
+
+  // 2. Validasi input
+  // 3. Business logic
+  // 4. DB operation
+  // 5. Return result
+
+  return { data: result, error: null }
+}
+```
+
+### Client Component Template
+
+```typescript
+'use client'
+// Selalu ada 'use client' di atas kalau pakai useState/useEffect/event handlers
+```
+
+### Import Path
+
+Selalu gunakan alias `@/` — tidak boleh relative path ke atas (`../../`):
+
+```typescript
+// ✅ Benar
+import { createClient } from '@/lib/supabase/server'
+
+// ❌ Salah
+import { createClient } from '../../../lib/supabase/server'
+```
+
+---
+
+## 7. Security Rules (NON-NEGOTIABLE)
+
+1. **`SUPABASE_SERVICE_ROLE_KEY`** — tidak boleh ada di file yang mengandung `'use client'` atau `NEXT_PUBLIC_`
+2. **Setiap server action** wajib `supabase.auth.getUser()` sebelum query apapun
+3. **Dokumen bea cukai** → wajib ke bucket `documents` (private), bukan `product-images`
+4. **Midtrans webhook** → wajib validasi signature sebelum update order apapun
+5. **TypeScript `any`** → dilarang kecuali ada komentar `// eslint-disable-next-line @typescript-eslint/no-explicit-any` dengan alasan jelas
+6. **Seller actions** → selalu cek `profile.status === 'active'` selain role check
+
+---
+
+## 8. Environment Variables
+
 ```bash
-claude agent ProductManager "Define product vision for Cukain Aja"
+# Public (aman di client)
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_APP_URL=
+NEXT_PUBLIC_MIDTRANS_CLIENT_KEY=
+
+# Secret (server only — JANGAN PERNAH NEXT_PUBLIC_)
+SUPABASE_SERVICE_ROLE_KEY=
+MIDTRANS_SERVER_KEY=
+MIDTRANS_IS_PRODUCTION=false
 ```
 
-### 2. Project Manager
+---
 
-**Purpose:** Manages project timeline, tasks, and resources
+## 9. Pola Data Fetching
 
-**Key Responsibilities:**
-- Project planning and scheduling
-- Task breakdown and assignment
-- Progress tracking and reporting
-- Risk management and mitigation
+### Server Component (RSC) — untuk initial data
 
-**Usage Example:**
-```bash
-claude agent ProjectManager "Create project plan for Q2 2024"
+```typescript
+// app/(public)/products/page.tsx
+export default async function ProductsPage() {
+  const supabase = await createClient()
+  const { data: products } = await supabase
+    .from('products')
+    .select('*, product_images(*), profiles(name)')
+    .eq('status', 'approved')
+  return <ProductList products={products ?? []} />
+}
 ```
 
-### 3. UX/UI Designer
+### Client Hook — untuk realtime
 
-**Purpose:** Creates wireframes, mockups, and user interfaces
-
-**Key Responsibilities:**
-- User research and persona development
-- Wireframing and prototyping
-- UI design and styling
-- Usability testing and optimization
-
-**Usage Example:**
-```bash
-claude agent UXDesigner "Design login page with modern UI"
+```typescript
+// Hanya untuk auction bidding — gunakan Supabase Realtime
+// lib/hooks/useAuction.ts
 ```
 
-### 4. Frontend Developer
+---
 
-**Purpose:** Builds user-facing interfaces with React/Next.js
+## 10. Task yang Sedang Dikerjakan
 
-**Key Responsibilities:**
-- Component development
-- State management implementation
-- API integration
-- Performance optimization
+Centang saat selesai dan update file ini.
 
-**Usage Example:**
-```bash
-claude agent FrontendDeveloper "Create product listing page"
-```
+### Phase 1 — Fondasi ✅
 
-### 5. Backend Developer
+- [x] Database migrations
+- [x] Enums & RLS policies
+- [x] Storage buckets
+- [x] Supabase type generation
+- [x] Foundation files: client.ts · server.ts · middleware.ts · config.ts
 
-**Purpose:** Develops server-side logic and APIs
+### Phase 2 — Auth & Profile (CURRENT)
 
-**Key Responsibilities:**
-- API development
-- Database design and management
-- Authentication and authorization
-- Business logic implementation
+- [ ] `/app/(auth)/register` — form + server action
+- [ ] `/app/(auth)/login` — form + server action
+- [ ] Auto-create profile trigger (DB)
+- [ ] `lib/actions/auth.ts` — register · login · logout · getSession
 
-**Usage Example:**
-```bash
-claude agent BackendDeveloper "Implement payment gateway integration"
-```
+### Phase 3 — Product System
 
-### 6. DevOps Engineer
+- [ ] `lib/actions/products.ts` — CRUD
+- [ ] `lib/services/storage.ts` — upload image & dokumen
+- [ ] Seller product form + document upload
+- [ ] Admin product verification flow
 
-**Purpose:** Manages infrastructure, CI/CD, and deployment
+### Phase 4 — Auction System
 
-**Key Responsibilities:**
-- Infrastructure setup and management
-- CI/CD pipeline configuration
-- Deployment automation
-- Monitoring and logging
+- [ ] `lib/actions/auctions.ts` — create · bid · end
+- [ ] `lib/hooks/useAuction.ts` — realtime subscription
+- [ ] Bid race condition handling (DB function `place_bid`)
+- [ ] Auction auto-end (cron atau DB trigger)
 
-**Usage Example:**
-```bash
-claude agent DevOpsEngineer "Set up CI/CD pipeline for Next.js app"
-```
+### Phase 5 — Payment
 
-### 7. QA Engineer
+- [ ] `lib/services/midtrans.ts` — snap token · webhook
+- [ ] `lib/actions/payments.ts` — create · verify
+- [ ] Webhook handler di `/app/api/webhooks/midtrans/route.ts`
 
-**Purpose:** Tests code, identifies bugs, and ensures quality
+### Phase 6 — Polish & Deploy
 
-**Key Responsibilities:**
-- Test case development
-- Automated testing
-- Bug reporting and tracking
-- Performance testing
+- [ ] Error boundaries
+- [ ] Loading states
+- [ ] Vercel deployment
+- [ ] Production env
 
-**Usage Example:**
-```bash
-claude agent QAEngineer "Create test cases for checkout flow"
-```
+---
 
-### 8. Technical Writer
-
-**Purpose:** Creates documentation and user guides
-
-**Key Responsibilities:**
-- API documentation
-- User guides and tutorials
-- Technical specifications
-- Release notes
-
-**Usage Example:**
-```bash
-claude agent TechnicalWriter "Write API documentation for payment module"
-```
-
-## 🚀 Usage
-
-### Basic Usage
-
-To use an agent, simply run the following command:
+## 11. Perintah Penting
 
 ```bash
-claude agent <agent_name> "<task_description>"
+# Generate ulang types setelah perubahan schema DB
+npm run db:types
+
+# Development
+npm run dev
+
+# Type check
+npx tsc --noEmit
+
+# Lint
+npm run lint
 ```
 
-### Example Workflow
+---
 
-```bash
-# 1. Define product vision
-claude agent ProductManager "Define product vision for Cukain Aja"
+## 12. Instruksi untuk AI Agent
 
-# 2. Create project plan
-claude agent ProjectManager "Create project plan for Q2 2024"
+Ketika kamu (Claude atau agent lain) membaca file ini, patuhi hal berikut:
 
-# 3. Design user interface
-claude agent UXDesigner "Design product detail page"
+### Sebelum menulis kode
 
-# 4. Implement frontend
-claude agent FrontendDeveloper "Build product detail page component"
+1. Cek **Phase mana yang sedang aktif** di section 10
+2. Pastikan file yang akan diubah **konsisten dengan konvensi** di section 6
+3. Cek **Security Rules** section 7 — tidak ada pengecualian
 
-# 5. Implement backend
-claude agent BackendDeveloper "Create API for product details"
+### Ketika mereview kode
 
-# 6. Test the feature
-claude agent QAEngineer "Test product detail page"
+Format output wajib:
 
-# 7. Document the feature
-claude agent TechnicalWriter "Document product detail page API"
+```
+## Masalah Ditemukan
+- [SEVERITY: HIGH/MED/LOW] Deskripsi masalah — baris/file spesifik
+
+## Kode Refactored
+[kode lengkap]
+
+## Penjelasan Perubahan
+[kenapa setiap perubahan dilakukan]
+
+## Next Step
+[apa yang harus dikerjakan setelah ini]
 ```
 
-## 🛠️ Customization
+### Ketika generate kode baru
 
-### Adding New Agents
-
-To add a new agent, create a new file in the `.claude/agents/` directory with the following structure:
-
-```yaml
-name: AgentName
-description: Agent description
-model: claude-3-5-sonnet-20240620
-instructions: |
-  You are a [role] responsible for [responsibilities].
-  Follow these guidelines:
-  - [guideline 1]
-  - [guideline 2]
-  - [guideline 3]
-
-context: |
-  Project: Cukain Aja
-  Frameworks: Next.js, React, Tailwind CSS
-  Database: PostgreSQL
-  Deployment: Vercel
-
-permissions:
-  - read: src/**
-  - write: src/**
-  - read: .claude/**
-```
-
-### Modifying Existing Agents
-
-To modify an existing agent, edit the corresponding YAML file in `.claude/agents/`:
-
-```yaml
-name: AgentName
-description: Updated description
-model: claude-3-5-sonnet-20240620
-instructions: |
-  You are now a [updated role] responsible for [updated responsibilities].
-  Follow these guidelines:
-  - [updated guideline 1]
-  - [updated guideline 2]
-  - [updated guideline 3]
-
-context: |
-  Project: Cukain Aja
-  Frameworks: Next.js, React, Tailwind CSS
-  Database: PostgreSQL
-  Deployment: Vercel
-
-permissions:
-  - read: src/**
-  - write: src/**
-  - read: .claude/**
-```
-
-### Agent Configuration Options
-
-| Option | Description | Example |
-|--------|-------------|---------|
-| `name` | Agent name | `ProductManager` |
-| `description` | Agent description | `Product Manager` |
-| `model` | Claude model to use | `claude-3-5-sonnet-20240620` |
-| `instructions` | Agent instructions | YAML instructions |
-| `context` | Project context | Project details |
-| `permissions` | File permissions | `read: src/**`, `write: src/**` |
-
-## 📚 Best Practices
-
-### For Developers
-
-1. **Be Specific** - Provide clear and detailed task descriptions
-2. **Provide Context** - Include relevant project information
-3. **Iterate** - Break down complex tasks into smaller steps
-4. **Review Code** - Always review agent-generated code
-5. **Test Thoroughly** - Ensure code quality and functionality
-
-### For Project Managers
-
-1. **Define Clear Goals** - Set specific objectives for each agent
-2. **Assign Appropriate Agents** - Match tasks to the right expertise
-3. **Monitor Progress** - Track agent performance and output
-4. **Provide Feedback** - Help agents improve over time
-5. **Integrate Workflows** - Combine multiple agents for complex tasks
-
-## 📊 Agent Performance
-
-| Agent | Average Response Time | Success Rate | Common Issues |
-|-------|-----------------------|--------------|---------------|
-| Product Manager |
+- Selalu mulai dengan interface/type dulu sebelum implementasi
+- Selalu sertakan error handling
+- Selalu gunakan TypeScript strict — tidak ada implicit `any`
+- Komponen baru selalu mulai sebagai Server Component, tambah `'use client'` hanya kalau perlu
