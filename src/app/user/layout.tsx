@@ -24,7 +24,7 @@ export default async function UserLayout({ children }: { children: React.ReactNo
     <div className="min-h-screen bg-[#F8F7F4]">
       <Navbar />
       <div className="max-w-6xl mx-auto px-4 py-8 flex gap-8">
-        <DashboardSidebar role={profile.role as UserRole} name={profile.name ?? 'User'} />
+        <DashboardSidebar role={"user"} name={profile.name ?? 'User'} />
         <main className="flex-1 min-w-0">{children}</main>
       </div>
     </div>

@@ -1,13 +1,12 @@
 /**
- * app/(user)/layout.tsx — User area layout
+ * app/(seller)/layout.tsx
  */
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Navbar } from '@/components/layout/Navbar'
 import { DashboardSidebar } from '@/components/layout/DashboardSidebar'
-import { UserRole } from '@/lib/types'
 
-export default async function UserLayout({ children }: { children: React.ReactNode }) {
+export default async function SellerLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -18,13 +17,14 @@ export default async function UserLayout({ children }: { children: React.ReactNo
     .eq('id', user.id)
     .single()
 
-  if (!profile) redirect('/login')
+  if (profile?.role !== 'seller') redirect('/user/dashboard')
+  if (profile?.status !== 'active') redirect('/pending-approval')
 
   return (
     <div className="min-h-screen bg-[#F8F7F4]">
       <Navbar />
       <div className="max-w-6xl mx-auto px-4 py-8 flex gap-8">
-        <DashboardSidebar role={profile.role as UserRole} name={profile.name ?? 'User'} />
+        <DashboardSidebar role="seller" name={profile.name ?? 'Seller'} />
         <main className="flex-1 min-w-0">{children}</main>
       </div>
     </div>
