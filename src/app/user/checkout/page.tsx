@@ -115,7 +115,7 @@ export default async function CheckoutPage({
                 price={Number(product.price)}
                 quantity={1}
                 sellerName={(product.profiles as { name: string } | null)?.name}
-                isVerified={product.is_verified_beacukai}
+                isVerified={product.is_verified_beacukai as boolean}
             />
 
             {/* Trust indicators */}

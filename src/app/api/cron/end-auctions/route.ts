@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
             await supabase
                 .from('products')
                 .update({ status: 'sold' })
-                .eq('id', auction.product_id)
+                .eq('id', auction.product_id as string)
 
             console.info(`[cron] ✓ Auction ${auction.id} → Order ${newOrder.id} (winner: ${winningBid.user_id})`)
             results.push({ auctionId: auction.id, status: 'completed', orderId: newOrder.id })

@@ -95,7 +95,7 @@ export default async function SellerAuctionsPage() {
                                     <div className="flex-1 min-w-0">
                                         <p className="font-semibold text-[#0B1D3A] text-sm truncate">{product?.title}</p>
                                         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                            <StatusBadge status={auction.status} size="sm" />
+                                            <StatusBadge status={auction.status!} size="sm" />
                                             <span className="text-xs text-slate-400">
                                                 Mulai {formatRupiah(auction.start_price)}
                                             </span>
