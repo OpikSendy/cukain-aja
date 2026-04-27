@@ -15,7 +15,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatDate } from '@/lib/utils/format'
 import { ShieldCheck, Store, Calendar } from 'lucide-react'
 import type { Metadata } from 'next'
-import type { BidWithBidder } from '@/lib/types'
+import type { BidWithBidder, ProductImage } from '@/lib/types'
 
 interface Props { params: { id: string } }
 
@@ -62,9 +62,13 @@ export default async function AuctionDetailPage({ params }: Props) {
     const { data: { user } } = await supabase.auth.getUser()
 
     const product = auction.products as {
-        id: string; title: string; description: string;
-        seller_id: string; is_verified_beacukai: boolean; created_at: string;
-        product_images: { id: string; image_url: string | null; is_primary: boolean }[];
+        id: string;
+        title: string;
+        description: string;
+        seller_id: string;
+        is_verified_beacukai: boolean;
+        created_at: string;
+        product_images: ProductImage[];
         profiles: { id: string; name: string } | null;
     } | null
 
@@ -88,7 +92,7 @@ export default async function AuctionDetailPage({ params }: Props) {
                     <div className="bg-white border border-slate-100 rounded-2xl p-6 space-y-4">
                         {/* Badges */}
                         <div className="flex items-center gap-2 flex-wrap">
-                            <StatusBadge status={auction.status} />
+                            <StatusBadge status={auction.status!} />
                             {product.is_verified_beacukai && (
                                 <span className="flex items-center gap-1.5 px-3 py-1 bg-green-50
                   border border-green-200 rounded-full text-xs font-semibold text-green-700">
