@@ -24,7 +24,13 @@ export default async function AuctionsPage({
 }: {
     searchParams: { status?: string }
 }) {
-    const status = searchParams.status ?? 'active'
+    const validStatus = ['active', 'upcoming', 'ended'] as const
+
+    type Status = typeof validStatus[number]
+
+    const status = (validStatus.includes(searchParams.status as Status)
+        ? searchParams.status
+        : 'active') as Status
 
     const supabase = await createClient()
 
