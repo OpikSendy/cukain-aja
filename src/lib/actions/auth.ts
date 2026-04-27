@@ -20,15 +20,11 @@ import type { ActionResult, Profile, RegisterInput, LoginInput } from '@/lib/typ
 
 export { setupPin, verifyPin, changePin, removePin, getPinStatus }
 
-// ─── Session Config ───────────────────────────────────────────────────────────
-
-export const SESSION_CONFIG = {
-  accessTokenExpiresIn: 60 * 60 * 24,           // 24 jam
-  refreshTokenExpiresIn: 60 * 60 * 24 * 7,       // 7 hari
-  rememberMeExpiresIn: 60 * 60 * 24 * 30,        // 30 hari
+const SESSION_CONFIG = {
+  accessTokenExpiresIn: 60 * 60 * 24,
+  refreshTokenExpiresIn: 60 * 60 * 24 * 7,
+  rememberMeExpiresIn: 60 * 60 * 24 * 30,
 } as const
-
-// ─── Register ─────────────────────────────────────────────────────────────────
 
 export async function register(
   input: RegisterInput

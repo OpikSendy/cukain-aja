@@ -1,9 +1,5 @@
 'use client'
 
-/**
- * components/auth/RegisterForm.tsx
- */
-
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'

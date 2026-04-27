@@ -1,7 +1,3 @@
-/**
- * app/(auth)/register/page.tsx — RSC
- */
-
 import { RegisterForm } from '@/components/auth/RegisterForm'
 import Link from 'next/link'
 import type { Metadata } from 'next'
