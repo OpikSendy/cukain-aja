@@ -13,11 +13,24 @@ import { reviewProduct } from '@/lib/actions/products'
 import { notify } from '@/components/ui/Toaster'
 import { cn } from '@/lib/utils'
 
-interface AdminProduct {
-    id: string; title: string; status: string; type: string
-    price: number | null; created_at: string; is_verified_beacukai: boolean
-    product_images: { image_url: string | null; is_primary: boolean }[]
-    profiles: { id: string; name: string } | null
+export type ProductStatus = 'pending' | 'approved' | 'rejected' | 'draft' | 'sold';
+
+export interface AdminProduct {
+    id: string;
+    title: string;
+    status: ProductStatus | string | null; // Tambahkan null
+    type: string | null;                  // Tambahkan null
+    price: number | null;
+    created_at: string | null;            // Tambahkan null
+    is_verified_beacukai: boolean | null; // Tambahkan null
+    product_images: {
+        image_url: string | null;
+        is_primary: boolean
+    }[];
+    profiles: {
+        id: string;
+        name: string
+    } | null;
 }
 
 interface AdminProductTableProps {
@@ -121,7 +134,7 @@ export function AdminProductTable({ products, searchQuery }: AdminProductTablePr
                                     </div>
 
                                     {/* Status */}
-                                    <StatusBadge status={product.status} size="sm" />
+                                    <StatusBadge status={product.status!} size="sm" />
 
                                     {/* Price */}
                                     <p className="text-sm font-semibold text-[#0B1D3A] text-right whitespace-nowrap">
