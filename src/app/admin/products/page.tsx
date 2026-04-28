@@ -104,7 +104,7 @@ export default async function AdminProductsPage({
             </div>
 
             <AdminProductTable
-                products={products ?? []}
+                products={products as any ?? []}
                 searchQuery={searchParams.search}
             />
         </div>
