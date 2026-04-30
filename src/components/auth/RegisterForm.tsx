@@ -1,10 +1,15 @@
 'use client'
-
+/**
+ * components/auth/RegisterForm.tsx — v2 (Fixed)
+ */
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff, Loader2, CheckCircle2, User, Store } from 'lucide-react'
-import { register } from '@/lib/actions/auth'
+import {
+  Eye, EyeOff, Loader2, CheckCircle2,
+  User, Store, Mail, RefreshCw
+} from 'lucide-react'
+import { register, resendVerificationEmail } from '@/lib/actions/auth'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@/lib/types'
 
@@ -16,26 +21,11 @@ type RoleOption = {
 }
 
 const ROLE_OPTIONS: RoleOption[] = [
-  {
-    value: 'user',
-    label: 'Pembeli',
-    description: 'Beli & ikut lelang',
-    icon: <User size={18} />,
-  },
-  {
-    value: 'seller',
-    label: 'Penjual',
-    description: 'Jual barang bea cukai',
-    icon: <Store size={18} />,
-  },
+  { value: 'user', label: 'Pembeli', description: 'Beli & ikut lelang', icon: <User size={18} /> },
+  { value: 'seller', label: 'Penjual', description: 'Jual barang bea cukai', icon: <Store size={18} /> },
 ]
 
-// Password strength checker
-function getPasswordStrength(password: string): {
-  score: number
-  label: string
-  color: string
-} {
+function getPasswordStrength(password: string) {
   let score = 0
   if (password.length >= 8) score++
   if (password.length >= 12) score++
@@ -43,15 +33,17 @@ function getPasswordStrength(password: string): {
   if (/\d/.test(password)) score++
   if (/[^a-zA-Z0-9]/.test(password)) score++
 
-  if (score <= 1) return { score, label: 'Lemah', color: 'bg-red-400' }
-  if (score <= 2) return { score, label: 'Cukup', color: 'bg-orange-400' }
-  if (score <= 3) return { score, label: 'Kuat', color: 'bg-yellow-400' }
-  return { score, label: 'Sangat Kuat', color: 'bg-green-500' }
+  if (score <= 1) return { score, label: 'Lemah', barClass: 'bg-red-400' }
+  if (score <= 2) return { score, label: 'Cukup', barClass: 'bg-orange-400' }
+  if (score <= 3) return { score, label: 'Kuat', barClass: 'bg-yellow-400' }
+  return { score, label: 'Sangat Kuat', barClass: 'bg-green-500' }
 }
 
 export function RegisterForm() {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [isResending, setIsResending] = useState(false)
+  const [resentEmail, setResentEmail] = useState(false)
 
   const [form, setForm] = useState({
     name: '',
@@ -77,50 +69,96 @@ export function RegisterForm() {
         return
       }
 
-      if (result.data?.requiresEmailVerification) {
+      if (result.data!.requiresEmailVerification) {
         setSuccess(true)
       } else {
-        // Auto-login (email confirmation disabled di Supabase)
+        // Email confirmation OFF → langsung ke setup PIN
         router.push('/setup-pin')
         router.refresh()
       }
     })
   }
 
+  const handleResend = async () => {
+    setIsResending(true)
+    setResentEmail(false)
+    await resendVerificationEmail(form.email)
+    setIsResending(false)
+    setResentEmail(true)
+    setTimeout(() => setResentEmail(false), 5000)
+  }
+
+  // ─── Success screen ────────────────────────────────────────────────────────
+
   if (success) {
     return (
-      <div className="text-center space-y-4 py-8">
-        <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto">
-          <CheckCircle2 className="text-green-500" size={32} />
+      <div className="text-center space-y-5 py-4">
+        <div className="w-16 h-16 bg-blue-50 border border-blue-100 rounded-2xl
+          flex items-center justify-center mx-auto">
+          <Mail className="text-blue-500" size={28} />
         </div>
+
         <div>
           <h2 className="text-xl font-bold text-[#0B1D3A]">Cek Email Kamu</h2>
-          <p className="text-slate-500 text-sm mt-2">
-            Kami kirim link konfirmasi ke{' '}
-            <span className="font-medium text-[#0B1D3A]">{form.email}</span>.
-            <br />
-            Klik link tersebut untuk mengaktifkan akun.
+          <p className="text-slate-500 text-sm mt-2 leading-relaxed">
+            Link konfirmasi dikirim ke{' '}
+            <span className="font-semibold text-[#0B1D3A]">{form.email}</span>
           </p>
         </div>
+
+        <div className="text-left space-y-2 bg-slate-50 border border-slate-100 rounded-xl p-4">
+          {[
+            'Buka inbox email kamu',
+            'Cari email dari Cukain Aja',
+            'Klik "Konfirmasi Email"',
+            'Kamu akan diarahkan untuk setup PIN',
+          ].map((step, i) => (
+            <div key={i} className="flex items-center gap-2.5">
+              <div className="w-5 h-5 bg-[#0B1D3A] rounded-full flex items-center justify-center shrink-0">
+                <span className="text-white text-[9px] font-bold">{i + 1}</span>
+              </div>
+              <span className="text-sm text-slate-600">{step}</span>
+            </div>
+          ))}
+        </div>
+
         <p className="text-xs text-slate-400">
-          Tidak ada email?{' '}
-          <button
-            type="button"
-            className="text-[#0B1D3A] font-semibold hover:underline"
-            onClick={() => {
-              // resendVerificationEmail(form.email) — bisa ditambahkan
-            }}
-          >
-            Kirim ulang
-          </button>
+          Tidak ada di inbox?{' '}
+          <span className="font-medium text-slate-600">Cek folder Spam / Promotions.</span>
         </p>
+
+        <button
+          type="button"
+          onClick={handleResend}
+          disabled={isResending || resentEmail}
+          className="flex items-center justify-center gap-2 w-full py-2.5
+            border border-slate-200 text-slate-600 rounded-xl text-sm font-medium
+            hover:bg-slate-50 disabled:opacity-50 transition-all"
+        >
+          {isResending ? (
+            <><Loader2 size={14} className="animate-spin" />Mengirim ulang...</>
+          ) : resentEmail ? (
+            <><CheckCircle2 size={14} className="text-green-500" />Email terkirim!</>
+          ) : (
+            <><RefreshCw size={14} />Kirim Ulang Email</>
+          )}
+        </button>
+
+        <Link
+          href="/login"
+          className="block text-sm text-[#0B1D3A] font-semibold hover:text-[#C8960C] transition-colors"
+        >
+          ← Kembali ke login
+        </Link>
       </div>
     )
   }
 
+  // ─── Form ──────────────────────────────────────────────────────────────────
+
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Role selector */}
+      {/* Role */}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-2">
           Daftar sebagai
@@ -131,29 +169,27 @@ export function RegisterForm() {
               key={option.value}
               type="button"
               onClick={() => setForm((f) => ({ ...f, role: option.value }))}
+              disabled={isPending}
               className={cn(
                 'p-3 rounded-xl border-2 text-left transition-all duration-150',
                 form.role === option.value
                   ? 'border-[#0B1D3A] bg-[#0B1D3A]/5'
-                  : 'border-slate-200 hover:border-slate-300'
+                  : 'border-slate-200 hover:border-slate-300',
+                isPending && 'opacity-50 cursor-not-allowed'
               )}
             >
-              <div
-                className={cn(
-                  'w-8 h-8 rounded-lg flex items-center justify-center mb-2',
-                  form.role === option.value
-                    ? 'bg-[#0B1D3A] text-[#C8960C]'
-                    : 'bg-slate-100 text-slate-500'
-                )}
-              >
+              <div className={cn(
+                'w-8 h-8 rounded-lg flex items-center justify-center mb-2',
+                form.role === option.value
+                  ? 'bg-[#0B1D3A] text-[#C8960C]'
+                  : 'bg-slate-100 text-slate-500'
+              )}>
                 {option.icon}
               </div>
-              <p
-                className={cn(
-                  'font-semibold text-sm',
-                  form.role === option.value ? 'text-[#0B1D3A]' : 'text-slate-700'
-                )}
-              >
+              <p className={cn(
+                'font-semibold text-sm',
+                form.role === option.value ? 'text-[#0B1D3A]' : 'text-slate-700'
+              )}>
                 {option.label}
               </p>
               <p className="text-xs text-slate-500 mt-0.5">{option.description}</p>
@@ -164,11 +200,11 @@ export function RegisterForm() {
 
       {/* Name */}
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1.5">
+        <label htmlFor="reg-name" className="block text-sm font-medium text-slate-700 mb-1.5">
           Nama Lengkap
         </label>
         <input
-          id="name"
+          id="reg-name"
           type="text"
           autoComplete="name"
           value={form.name}
@@ -176,20 +212,20 @@ export function RegisterForm() {
           placeholder="Budi Santoso"
           required
           disabled={isPending}
-          className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-[#0B1D3A]
-            placeholder:text-slate-400 text-sm
+          className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white
+            text-[#0B1D3A] placeholder:text-slate-400 text-sm
             focus:outline-none focus:ring-2 focus:ring-[#0B1D3A] focus:border-transparent
-            disabled:opacity-50 transition-shadow"
+            disabled:opacity-50"
         />
       </div>
 
       {/* Email */}
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
+        <label htmlFor="reg-email" className="block text-sm font-medium text-slate-700 mb-1.5">
           Email
         </label>
         <input
-          id="email"
+          id="reg-email"
           type="email"
           autoComplete="email"
           value={form.email}
@@ -197,35 +233,37 @@ export function RegisterForm() {
           placeholder="budi@email.com"
           required
           disabled={isPending}
-          className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-[#0B1D3A]
-            placeholder:text-slate-400 text-sm
+          className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white
+            text-[#0B1D3A] placeholder:text-slate-400 text-sm
             focus:outline-none focus:ring-2 focus:ring-[#0B1D3A] focus:border-transparent
-            disabled:opacity-50 transition-shadow"
+            disabled:opacity-50"
         />
       </div>
 
       {/* Password */}
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1.5">
+        <label htmlFor="reg-password" className="block text-sm font-medium text-slate-700 mb-1.5">
           Password
         </label>
         <div className="relative">
           <input
-            id="password"
+            id="reg-password"
             type={showPassword ? 'text' : 'password'}
             autoComplete="new-password"
             value={form.password}
             onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-            placeholder="Min. 8 karakter"
+            placeholder="Min. 6 karakter"
             required
+            minLength={6}
             disabled={isPending}
             className="w-full px-4 py-3 pr-11 rounded-xl border border-slate-200 bg-white
               text-[#0B1D3A] placeholder:text-slate-400 text-sm
               focus:outline-none focus:ring-2 focus:ring-[#0B1D3A] focus:border-transparent
-              disabled:opacity-50 transition-shadow"
+              disabled:opacity-50"
           />
           <button
             type="button"
+            tabIndex={-1}
             onClick={() => setShowPassword((v) => !v)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
           >
@@ -233,8 +271,7 @@ export function RegisterForm() {
           </button>
         </div>
 
-        {/* Password strength bar */}
-        {passwordStrength && (
+        {passwordStrength && form.password.length > 0 && (
           <div className="mt-2 space-y-1">
             <div className="flex gap-1">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -242,24 +279,20 @@ export function RegisterForm() {
                   key={i}
                   className={cn(
                     'h-1 flex-1 rounded-full transition-all duration-300',
-                    i < passwordStrength.score
-                      ? passwordStrength.color
-                      : 'bg-slate-100'
+                    i < passwordStrength.score ? passwordStrength.barClass : 'bg-slate-100'
                   )}
                 />
               ))}
             </div>
             <p className="text-xs text-slate-500">
               Kekuatan:{' '}
-              <span
-                className={cn(
-                  'font-medium',
-                  passwordStrength.score <= 1 && 'text-red-500',
-                  passwordStrength.score === 2 && 'text-orange-500',
-                  passwordStrength.score === 3 && 'text-yellow-600',
-                  passwordStrength.score >= 4 && 'text-green-600'
-                )}
-              >
+              <span className={cn(
+                'font-semibold',
+                passwordStrength.score <= 1 && 'text-red-500',
+                passwordStrength.score === 2 && 'text-orange-500',
+                passwordStrength.score === 3 && 'text-yellow-600',
+                passwordStrength.score >= 4 && 'text-green-600'
+              )}>
                 {passwordStrength.label}
               </span>
             </p>
@@ -269,17 +302,17 @@ export function RegisterForm() {
 
       {/* Error */}
       {error && (
-        <div className="px-4 py-3 bg-red-50 border border-red-100 rounded-xl">
-          <p className="text-red-600 text-sm">{error}</p>
+        <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
+          <p className="text-red-600 text-sm font-medium">{error}</p>
         </div>
       )}
 
-      {/* Seller note */}
+      {/* Seller notice */}
       {form.role === 'seller' && (
         <div className="px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl">
-          <p className="text-amber-700 text-xs leading-relaxed">
-            <span className="font-semibold">Catatan Penjual:</span> Akun seller memerlukan
-            persetujuan admin sebelum bisa mengupload produk. Proses verifikasi 1–2 hari kerja.
+          <p className="text-amber-800 text-xs leading-relaxed">
+            <span className="font-bold">Catatan:</span>{' '}
+            Akun seller memerlukan persetujuan admin sebelum bisa upload produk (1–2 hari kerja).
           </p>
         </div>
       )}
@@ -294,21 +327,17 @@ export function RegisterForm() {
           flex items-center justify-center gap-2"
       >
         {isPending ? (
-          <>
-            <Loader2 size={16} className="animate-spin" />
-            Memproses...
-          </>
+          <><Loader2 size={16} className="animate-spin" />Membuat akun...</>
         ) : (
           'Buat Akun'
         )}
       </button>
 
       <p className="text-center text-xs text-slate-400">
-        Dengan mendaftar, kamu menyetujui{' '}
+        Dengan mendaftar, kamu setuju dengan{' '}
         <Link href="/terms" className="text-[#0B1D3A] hover:underline">Syarat & Ketentuan</Link>
         {' '}dan{' '}
-        <Link href="/privacy" className="text-[#0B1D3A] hover:underline">Kebijakan Privasi</Link>
-        {' '}Cukain Aja.
+        <Link href="/privacy" className="text-[#0B1D3A] hover:underline">Kebijakan Privasi</Link>.
       </p>
     </form>
   )
