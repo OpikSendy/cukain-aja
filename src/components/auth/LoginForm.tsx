@@ -47,12 +47,13 @@ export function LoginForm() {
     }
   }, [])
 
-  const redirectAfterLogin = (role: string, status: string) => {
-    if (role === 'admin') return router.push('/admin/dashboard')
-    if (role === 'seller' && status === 'active') return router.push('/seller/dashboard')
-    if (status === 'pending') return router.push('/pending-approval')
-    router.push('/user/dashboard')
-    router.refresh()
+  const redirectAfterLogin = (redirectPath: string) => {
+    if (redirectPath.startsWith('http')) {
+      window.location.href = redirectPath
+    } else {
+      router.push(redirectPath)
+      router.refresh()
+    }
   }
 
   // ─── Password Login ─────────────────────────────────────────────────────────
@@ -72,16 +73,17 @@ export function LoginForm() {
         return
       }
 
-      const { role, hasPin, status } = result.data!
+      const { userId, hasPin, redirectPath } = result.data!
 
       // Simpan ke localStorage untuk PIN login next time
-      // Note: ini akan di-override setelah getSession() di server
+      localStorage.setItem(USER_ID_STORAGE_KEY, userId)
       if (hasPin) {
-        // userId akan diambil setelah login berhasil
         localStorage.setItem(HAS_PIN_STORAGE_KEY, 'true')
+      } else {
+        localStorage.removeItem(HAS_PIN_STORAGE_KEY)
       }
 
-      redirectAfterLogin(role, status)
+      redirectAfterLogin(redirectPath)
     })
   }
 
@@ -99,7 +101,7 @@ export function LoginForm() {
         return
       }
 
-      redirectAfterLogin(result.data!.role, result.data!.status)
+      redirectAfterLogin(result.data!.redirectPath)
     })
   }
 

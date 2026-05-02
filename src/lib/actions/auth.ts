@@ -158,6 +158,7 @@ export async function register(
 // ─── Login ────────────────────────────────────────────────────────────────────
 
 export interface LoginResult {
+  userId: string
   role: string
   status: string
   hasPin: boolean
@@ -224,6 +225,7 @@ export async function login(
 
     return {
       data: {
+        userId: authData.user.id,
         role: 'user',
         status: 'active',
         hasPin: false,
@@ -254,6 +256,7 @@ export async function login(
 
   return {
     data: {
+      userId: authData.user.id,
       role: profile.role as UserRole,
       status: profile.status as UserStatus,
       hasPin: !!profile.pin_hash,
@@ -304,30 +307,60 @@ export async function loginWithPin(
     }
   }
 
-  // Ambil profile
-  const supabase = await createClient()
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, status, pin_hash')
-    .eq('id', userId)
-    .single()
+  // Ambil profile dan user email menggunakan admin client
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const adminClient = createAdminClient()
+
+  const [profileResult, userResult] = await Promise.all([
+    adminClient.from('profiles').select('role, status, pin_hash').eq('id', userId).single(),
+    adminClient.auth.admin.getUserById(userId)
+  ])
+
+  const profile = profileResult.data
+  const user = userResult.data?.user
 
   if (profile?.status === 'suspended') {
     return { data: null, error: 'Akun kamu telah disuspend.' }
   }
 
+  if (!user?.email) {
+    return { data: null, error: 'Gagal mendapatkan data user untuk login.' }
+  }
+
+  // Generate magic link untuk bypass password
   let redirectPath = '/user/dashboard'
   if (profile?.role === 'admin') redirectPath = '/admin/dashboard'
   else if (profile?.role === 'seller' && profile?.status === 'active') {
     redirectPath = '/seller/dashboard'
   }
 
+
+  const baseUrl = APP_CONFIG.url.endsWith('/')
+    ? APP_CONFIG.url.slice(0, -1)
+    : APP_CONFIG.url;
+
+  const finalRedirect = `${baseUrl}/auth/implicit?next=${encodeURIComponent(redirectPath)}`;
+
+  const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+    type: 'magiclink',
+    email: user.email,
+    options: {
+      redirectTo: finalRedirect
+    }
+  })
+
+  if (linkError || !linkData?.properties?.action_link) {
+    console.error('[auth/loginWithPin] Link generation failed:', linkError);
+    return { data: null, error: 'Gagal membuat sesi login via PIN.' }
+  }
+
   return {
     data: {
-      role: profile?.role ?? 'user',
-      status: profile?.status ?? 'active',
+      userId,
+      role: (profile?.role as UserRole) ?? 'user',
+      status: (profile?.status as UserStatus) ?? 'active',
       hasPin: true,
-      redirectPath,
+      redirectPath: linkData.properties.action_link,
     },
     error: null,
   }

@@ -10,11 +10,12 @@ export const metadata: Metadata = {
   title: 'Masuk — Cukain Aja',
 }
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { error?: string }
+  searchParams: Promise<{ error?: string }>
 }) {
+  const params = await searchParams
   return (
     <div className="space-y-8">
       <div>
@@ -29,9 +30,9 @@ export default function LoginPage({
         </p>
       </div>
 
-      {searchParams.error && (
+      {params.error && (
         <div className="px-4 py-3 bg-red-50 border border-red-100 rounded-xl">
-          <p className="text-red-600 text-sm">{searchParams.error}</p>
+          <p className="text-red-600 text-sm">{params.error}</p>
         </div>
       )}
 
