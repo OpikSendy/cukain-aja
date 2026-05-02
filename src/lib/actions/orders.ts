@@ -7,6 +7,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { isValidUUID } from '@/lib/utils/validators'
 import type { ActionResult, Order, OrderWithItems, CreateOrderInput } from '@/lib/types'
 
@@ -24,8 +25,10 @@ export async function createOrder(input: CreateOrderInput): Promise<ActionResult
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { data: null, error: 'Login dulu untuk membeli' }
 
+  const adminClient = createAdminClient()
+
   // Ambil data produk
-  const { data: product } = await supabase
+  const { data: product } = await adminClient
     .from('products')
     .select('id, title, price, status, type, seller_id')
     .eq('id', input.productId)
@@ -40,7 +43,7 @@ export async function createOrder(input: CreateOrderInput): Promise<ActionResult
   const totalPrice = product.price * quantity
 
   // Create order
-  const { data: order, error: orderError } = await supabase
+  const { data: order, error: orderError } = await adminClient
     .from('orders')
     .insert({
       user_id: user.id,
@@ -54,7 +57,7 @@ export async function createOrder(input: CreateOrderInput): Promise<ActionResult
   if (orderError) return { data: null, error: 'Gagal membuat order' }
 
   // Create order item
-  const { error: itemError } = await supabase
+  const { error: itemError } = await adminClient
     .from('order_items')
     .insert({
       order_id: order.id,
@@ -65,7 +68,7 @@ export async function createOrder(input: CreateOrderInput): Promise<ActionResult
 
   if (itemError) {
     // Rollback order (best effort)
-    await supabase.from('orders').delete().eq('id', order.id)
+    await adminClient.from('orders').delete().eq('id', order.id)
     return { data: null, error: 'Gagal membuat order item' }
   }
 
