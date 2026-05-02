@@ -3,7 +3,6 @@
  * components/shared/ProductCard.tsx
  */
 import Link from 'next/link'
-import Image from 'next/image'
 import { ShieldCheck, Gavel, Package } from 'lucide-react'
 import { formatRupiah } from '@/lib/utils/format'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -40,15 +39,14 @@ export function ProductCard({
         className
       )}
     >
-      {/* Image */}
+      {/* Image — gunakan <img> biasa agar tidak butuh whitelist domain */}
       <div className="relative aspect-[4/3] bg-slate-50 overflow-hidden">
         {primaryImage?.image_url ? (
-          <Image
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={primaryImage.image_url}
             alt={product.title}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">

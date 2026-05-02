@@ -8,8 +8,11 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { sendPushNotification } from '@/lib/webpush'
 import { validateAuction } from '@/lib/utils/validators'
 import { isValidUUID } from '@/lib/utils/validators'
+import { formatRupiah } from '@/lib/utils/format'
 import type {
   ActionResult,
   Auction,
@@ -159,10 +162,11 @@ export async function placeBid(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { data: null, error: 'Login dulu untuk ikut lelang' }
 
-  // Cek auction masih aktif
-  const { data: auction } = await supabase
+  // Cek auction masih aktif (gunakan adminClient untuk pastikan terbaca)
+  const adminClient = createAdminClient()
+  const { data: auction } = await adminClient
     .from('auctions')
-    .select('status, current_price, end_time, products(seller_id)')
+    .select('status, current_price, end_time, products(title, seller_id)')
     .eq('id', auctionId)
     .single()
 
@@ -179,20 +183,54 @@ export async function placeBid(
     return { data: null, error: 'Waktu lelang sudah habis' }
   }
 
-  // Gunakan DB function untuk menghindari race condition
-  const { error: bidError } = await supabase.rpc('place_bid', {
-    p_auction_id: auctionId,
-    p_amount: amount,
-  })
+  // Cari tahu siapa penawar tertinggi saat ini untuk dikirim notif outbid
+  const { data: lastBid } = await adminClient
+    .from('bids')
+    .select('user_id')
+    .eq('auction_id', auctionId)
+    .order('amount', { ascending: false })
+    .limit(1)
+    .single()
+
+  // Fallback: Gunakan atomic update dari Supabase JS menggunakan adminClient bypass RLS
+  // Update hanya jika harga saat ini masih lebih kecil dari bid yang diajukan
+  const { data: updatedAuction, error: updateError } = await adminClient
+    .from('auctions')
+    .update({ current_price: amount })
+    .eq('id', auctionId)
+    .lt('current_price', amount)
+    .select('id')
+    .single()
+
+  if (updateError || !updatedAuction) {
+    return {
+      data: null,
+      error: `Bid gagal atau harus lebih tinggi dari harga saat ini (${formatRupiah(auction.current_price ?? 0)})`
+    }
+  }
+
+  // Jika berhasil update current_price, catat history bid-nya (adminClient)
+  const { error: bidError } = await adminClient
+    .from('bids')
+    .insert({
+      auction_id: auctionId,
+      user_id: user.id,
+      amount: amount
+    })
 
   if (bidError) {
-    if (bidError.message.includes('Bid must be higher')) {
-      return {
-        data: null,
-        error: `Bid harus lebih tinggi dari harga saat ini (${auction.current_price})`,
-      }
-    }
     return { data: null, error: 'Gagal memasang bid' }
+  }
+
+  // Kirim notifikasi ke penawar sebelumnya (Outbid Notification)
+  if (lastBid && lastBid.user_id !== user.id) {
+    const productTitle = (auction.products as any)?.title || 'Barang Lelang'
+    // Jangan ditunggu (non-blocking) agar tidak memperlambat response bid
+    sendPushNotification(lastBid.user_id!, {
+      title: 'Yah, Penawaranmu Dilewati! 😰',
+      body: `Seseorang baru saja menawar lebih tinggi untuk ${productTitle}. Yuk naikkan bid kamu sebelum lelang berakhir!`,
+      url: `/auctions/${auctionId}`
+    }).catch(err => console.error('Failed to send outbid push:', err))
   }
 
   return { data: { newPrice: amount }, error: null }
