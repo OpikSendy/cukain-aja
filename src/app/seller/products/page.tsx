@@ -15,8 +15,9 @@ export const metadata: Metadata = { title: 'Produk Saya — Cukain Aja' }
 export default async function SellerProductsPage({
   searchParams,
 }: {
-  searchParams: { submitted?: string }
+  searchParams: Promise<{ submitted?: string }>
 }) {
+  const params = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -48,7 +49,7 @@ export default async function SellerProductsPage({
       </div>
 
       {/* Success notification */}
-      {searchParams.submitted && (
+      {params.submitted && (
         <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-xl">
           <p className="text-green-700 text-sm font-medium">
             ✓ Produk berhasil disubmit. Admin akan mereview dalam 1-2 hari kerja.

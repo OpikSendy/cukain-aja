@@ -13,8 +13,9 @@ export const metadata: Metadata = { title: 'Buat Lelang — Cukain Aja' }
 export default async function NewAuctionPage({
     searchParams,
 }: {
-    searchParams: { product?: string }
+    searchParams: Promise<{ product?: string }>
 }) {
+    const params = await searchParams
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
@@ -51,7 +52,7 @@ export default async function NewAuctionPage({
     }
 
     // Default ke produk yang dipilih dari query param, atau produk pertama
-    const selectedProduct = availableProducts.find(p => p.id === searchParams.product)
+    const selectedProduct = availableProducts.find(p => p.id === params.product)
         ?? availableProducts[0]
 
     return (
