@@ -14,8 +14,9 @@ export const metadata: Metadata = { title: 'Setup PIN — Cukain Aja' }
 export default async function SetupPinPage({
   searchParams,
 }: {
-  searchParams: { skip?: string }
+  searchParams: Promise<{ skip?: string }>
 }) {
+  const params = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 

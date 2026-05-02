@@ -16,6 +16,7 @@
 
 import bcrypt from 'bcryptjs'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import type { ActionResult } from '@/lib/types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -118,10 +119,10 @@ export async function verifyPin(
     return { data: null, error: 'Format PIN tidak valid' }
   }
 
-  const supabase = await createClient()
+  const adminClient = createAdminClient()
 
-  // Ambil data profile untuk cek lock dan hash
-  const { data: profile, error: profileError } = await supabase
+  // Ambil data profile untuk cek lock dan hash menggunakan admin client (bypass RLS karena user belum login)
+  const { data: profile, error: profileError } = await adminClient
     .from('profiles')
     .select('pin_hash, pin_attempts, pin_locked_until')
     .eq('id', userId)
@@ -156,12 +157,12 @@ export async function verifyPin(
 
   if (isMatch) {
     // Reset attempts
-    await supabase.rpc('reset_pin_attempts', { p_user_id: userId })
+    await adminClient.rpc('reset_pin_attempts', { p_user_id: userId })
     return { data: { success: true }, error: null }
   }
 
   // PIN salah — increment attempts
-  const { data: attemptResult } = await supabase
+  const { data: attemptResult } = await adminClient
     .rpc('increment_pin_attempts', { p_user_id: userId })
 
   const result = attemptResult as {
