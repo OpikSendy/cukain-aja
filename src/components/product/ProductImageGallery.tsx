@@ -1,11 +1,11 @@
-﻿'use client'
+'use client'
 /**
  * components/product/ProductImageGallery.tsx
  *
  * Image gallery dengan thumbnail nav untuk halaman detail produk.
+ * Menggunakan <img> biasa (bukan next/image) agar tidak butuh whitelist domain.
  */
 import { useState } from 'react'
-import Image from 'next/image'
 import { ChevronLeft, ChevronRight, Package } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ProductImage } from '@/lib/types'
@@ -36,13 +36,11 @@ export function ProductImageGallery({ images, title }: ProductImageGalleryProps)
     <div className="space-y-3">
       {/* Main image */}
       <div className="relative aspect-square rounded-2xl overflow-hidden bg-slate-50 group">
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src={activeImage?.image_url ?? ''}
           alt={title}
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 100vw, 50vw"
-          priority
+          className="w-full h-full object-cover"
         />
 
         {/* Nav arrows */}
@@ -88,11 +86,10 @@ export function ProductImageGallery({ images, title }: ProductImageGalleryProps)
                 i === activeIndex ? 'border-[#0B1D3A]' : 'border-transparent opacity-60 hover:opacity-100'
               )}
             >
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={img.image_url ?? ''}
                 alt={`Foto ${i + 1}`}
-                width={64}
-                height={64}
                 className="w-full h-full object-cover"
               />
             </button>

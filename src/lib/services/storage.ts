@@ -1,3 +1,5 @@
+'use server'
+
 /**
  * lib/services/storage.ts
  *
