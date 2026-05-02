@@ -4,6 +4,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { StatCard } from '@/components/shared/EmptyState'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatDate, formatRupiah } from '@/lib/utils/format'
@@ -17,23 +18,25 @@ export default async function AdminDashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const adminClient = createAdminClient()
+
   const [usersRes, productsRes, ordersRes, pendingRes] = await Promise.all([
-    supabase.from('profiles').select('id', { count: 'exact', head: true }),
-    supabase.from('products').select('id', { count: 'exact', head: true }),
-    supabase.from('orders').select('id, total_price').limit(100),
-    supabase.from('products').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    adminClient.from('profiles').select('id', { count: 'exact', head: true }),
+    adminClient.from('products').select('id', { count: 'exact', head: true }),
+    adminClient.from('orders').select('id, total_price').limit(100),
+    adminClient.from('products').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
   ])
 
   const totalRevenue = (ordersRes.data ?? []).reduce((sum, o) => sum + (Number(o.total_price) || 0), 0)
 
   // Recent items for quick view
-  const { data: recentProducts } = await supabase
+  const { data: recentProducts } = await adminClient
     .from('products')
     .select('id, title, status, created_at, profiles(name)')
     .order('created_at', { ascending: false })
     .limit(5)
 
-  const { data: pendingSellers } = await supabase
+  const { data: pendingSellers } = await adminClient
     .from('profiles')
     .select('id, name, created_at')
     .eq('role', 'seller')

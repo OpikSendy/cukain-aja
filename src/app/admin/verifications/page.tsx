@@ -3,6 +3,7 @@
  */
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { VerificationQueue } from '@/components/admin/VerificationQueue'
 import type { Metadata } from 'next'
 
@@ -13,7 +14,9 @@ export default async function AdminVerificationsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
+  const adminClient = createAdminClient()
+
+  const { data: profile } = await adminClient
     .from('profiles')
     .select('role')
     .eq('id', user.id)
@@ -22,7 +25,7 @@ export default async function AdminVerificationsPage() {
   if (profile?.role !== 'admin') redirect('/unauthorized')
 
   // Ambil produk pending beserta dokumen dan gambar
-  const { data: products } = await supabase
+  const { data: products } = await adminClient
     .from('products')
     .select(`
       *,
