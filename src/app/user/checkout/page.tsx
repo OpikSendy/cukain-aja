@@ -6,6 +6,7 @@
  */
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { CheckoutButton } from '@/components/payment/CheckoutButton'
 import { formatRupiah } from '@/lib/utils/format'
 import { ShieldCheck, Package, ArrowLeft } from 'lucide-react'
@@ -18,14 +19,15 @@ export const metadata: Metadata = { title: 'Checkout — Cukain Aja' }
 export default async function CheckoutPage({
     searchParams,
 }: {
-    searchParams: { product?: string; order?: string }
+    searchParams: Promise<{ product?: string; order?: string }>
 }) {
+    const params = await searchParams
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) redirect('/login?next=/checkout')
+    if (!user) redirect('/login?next=/user/checkout')
 
     // ─── Mode 1: Langsung ke order yang sudah ada ─────────────────────────────
-    if (searchParams.order) {
+    if (params.order) {
         const { data: order } = await supabase
             .from('orders')
             .select(`
@@ -33,7 +35,7 @@ export default async function CheckoutPage({
         order_items(*, products(id, title, product_images(image_url, is_primary))),
         payments(payment_status, payment_url)
       `)
-            .eq('id', searchParams.order)
+            .eq('id', params.order)
             .eq('user_id', user.id)
             .single()
 
@@ -71,13 +73,14 @@ export default async function CheckoutPage({
     }
 
     // ─── Mode 2: Dari product detail — buat order baru ────────────────────────
-    if (!searchParams.product) redirect('/products')
+    if (!params.product) redirect('/products')
 
-    const { data: product } = await supabase
+    const adminClient = createAdminClient()
+    const { data: product } = await adminClient
         .from('products')
         .select('*, product_images(*), profiles(name)')
-        .eq('id', searchParams.product)
-        .eq('status', 'approved')
+        .eq('id', params.product)
+        .in('status', ['approved', 'sold'])
         .eq('type', 'fixed')
         .single()
 

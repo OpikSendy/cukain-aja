@@ -17,11 +17,13 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = { title: 'Detail Pesanan — Cukain Aja' }
 
 interface Props {
-    params: { id: string }
-    searchParams: { payment?: string }
+    params: Promise<{ id: string }>
+    searchParams: Promise<{ payment?: string }>
 }
 
-export default async function OrderDetailPage({ params, searchParams }: Props) {
+export default async function OrderDetailPage(props: Props) {
+    const params = await props.params
+    const searchParams = await props.searchParams
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
