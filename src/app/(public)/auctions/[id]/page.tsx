@@ -9,6 +9,7 @@
  */
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { AuctionRealtime } from '@/components/auction/AuctionRealtime'
 import { ProductImageGallery } from '@/components/product/ProductImageGallery'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -17,14 +18,17 @@ import { ShieldCheck, Store, Calendar } from 'lucide-react'
 import type { Metadata } from 'next'
 import type { BidWithBidder, ProductImage } from '@/lib/types'
 
-interface Props { params: { id: string } }
+export const dynamic = 'force-dynamic'
+
+interface Props { params: Promise<{ id: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-    const supabase = await createClient()
+    const { id } = await params
+    const supabase = createAdminClient()
     const { data } = await supabase
         .from('auctions')
         .select('products(title)')
-        .eq('id', params.id)
+        .eq('id', id)
         .single()
 
     const product = data?.products as { title: string } | null
@@ -32,10 +36,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function AuctionDetailPage({ params }: Props) {
-    const supabase = await createClient()
+    const { id } = await params
+    const adminClient = createAdminClient()
 
     // Fetch auction dengan semua relasi
-    const { data: auction, error } = await supabase
+    const { data: auction, error } = await adminClient
         .from('auctions')
         .select(`
       *,
@@ -45,20 +50,21 @@ export default async function AuctionDetailPage({ params }: Props) {
         profiles(id, name)
       )
     `)
-        .eq('id', params.id)
+        .eq('id', id)
         .single()
 
     if (error || !auction) notFound()
 
     // Fetch initial bids (50 terbaru)
-    const { data: initialBids } = await supabase
+    const { data: initialBids } = await adminClient
         .from('bids')
         .select('*, profiles(id, name)')
-        .eq('auction_id', params.id)
+        .eq('auction_id', id)
         .order('amount', { ascending: false })
         .limit(50)
 
     // Cek auth user
+    const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     const product = auction.products as {
@@ -137,7 +143,7 @@ export default async function AuctionDetailPage({ params }: Props) {
                 {/* AuctionRealtime adalah client component yang handle semua realtime logic */}
                 <div className="lg:sticky lg:top-20">
                     <AuctionRealtime
-                        auctionId={params.id}
+                        auctionId={id}
                         initialAuction={auction as never}
                         initialBids={(initialBids ?? []) as BidWithBidder[]}
                         currentUserId={user?.id}

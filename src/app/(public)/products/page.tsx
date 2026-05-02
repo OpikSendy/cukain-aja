@@ -1,11 +1,13 @@
 /**
  * app/(public)/products/page.tsx — Public product listing (RSC)
  */
-import { createClient } from '@/lib/supabase/server'
-import { ProductCard, ProductCardSkeleton } from '@/components/shared/ProductCard'
-import { Search, SlidersHorizontal } from 'lucide-react'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { ProductCard } from '@/components/shared/ProductCard'
+import { Search } from 'lucide-react'
 import type { Metadata } from 'next'
 import type { ProductWithImages } from '@/lib/types'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Produk — Cukain Aja',
@@ -15,9 +17,10 @@ export const metadata: Metadata = {
 export default async function PublicProductsPage({
   searchParams,
 }: {
-  searchParams: { search?: string; type?: string; category?: string }
+  searchParams: Promise<{ search?: string; type?: string; category?: string }>
 }) {
-  const supabase = await createClient()
+  const params = await searchParams
+  const supabase = createAdminClient()
 
   let query = supabase
     .from('products')
@@ -26,12 +29,12 @@ export default async function PublicProductsPage({
     .order('created_at', { ascending: false })
     .limit(48)
 
-  if (searchParams.search) {
-    query = query.ilike('title', `%${searchParams.search}%`)
+  if (params.search) {
+    query = query.ilike('title', `%${params.search}%`)
   }
-  if (searchParams.type && ['fixed', 'auction'].includes(searchParams.type)) {
+  if (params.type && ['fixed', 'auction'].includes(params.type)) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    query = query.eq('type', searchParams.type as any)
+    query = query.eq('type', params.type as any)
   }
 
   const { data: products } = await query
@@ -51,7 +54,7 @@ export default async function PublicProductsPage({
           <Search size={16} className="text-slate-400 shrink-0" />
           <input
             name="search"
-            defaultValue={searchParams.search}
+            defaultValue={params.search}
             placeholder="Cari produk..."
             className="flex-1 text-sm text-[#0B1D3A] placeholder:text-slate-400 outline-none bg-transparent"
           />
@@ -67,7 +70,7 @@ export default async function PublicProductsPage({
               key={filter.value}
               href={filter.value ? `?type=${filter.value}` : '/products'}
               className={`px-4 py-2.5 rounded-xl text-sm font-medium border transition-all
-                ${searchParams.type === filter.value || (!searchParams.type && !filter.value)
+                ${params.type === filter.value || (!params.type && !filter.value)
                   ? 'bg-[#0B1D3A] text-white border-[#0B1D3A]'
                   : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                 }`}

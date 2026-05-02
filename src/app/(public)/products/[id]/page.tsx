@@ -2,24 +2,27 @@
  * app/(public)/products/[id]/page.tsx — Product Detail (RSC)
  */
 import { notFound } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { ProductImageGallery } from '@/components/product/ProductImageGallery'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatRupiah, formatDate } from '@/lib/utils/format'
-import { ShieldCheck, Gavel, Package, Store } from 'lucide-react'
+import { ShieldCheck, Gavel, Store } from 'lucide-react'
 import type { Metadata } from 'next'
 import type { ProductDetail } from '@/lib/types'
 
-interface Props { params: { id: string } }
+export const dynamic = 'force-dynamic'
+
+interface Props { params: Promise<{ id: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const supabase = await createClient()
+  const { id } = await params
+  const supabase = createAdminClient()
   const { data } = await supabase
     .from('products')
     .select('title, description')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   return {
@@ -29,9 +32,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProductDetailPage({ params }: Props) {
-  const supabase = await createClient()
+  const { id } = await params
+  const adminClient = createAdminClient()
 
-  const { data: product, error } = await supabase
+  const { data: product, error } = await adminClient
     .from('products')
     .select(`
       *,
@@ -40,8 +44,8 @@ export default async function ProductDetailPage({ params }: Props) {
       auctions(*),
       verifications(status, notes)
     `)
-    .eq('id', params.id)
-    .eq('status', 'approved')
+    .eq('id', id)
+    .in('status', ['approved', 'sold'])
     .single()
 
   if (error || !product) notFound()
@@ -51,6 +55,7 @@ export default async function ProductDetailPage({ params }: Props) {
   const auction = typedProduct.auctions
 
   // Ambil sesi user untuk tombol beli/bid
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   return (
@@ -118,7 +123,7 @@ export default async function ProductDetailPage({ params }: Props) {
               </Link>
             ) : !isAuction ? (
               <Link
-                href={`/checkout?product=${typedProduct.id}`}
+                href={`/user/checkout?product=${typedProduct.id}`}
                 className="block w-full py-4 bg-[#0B1D3A] text-white rounded-2xl font-bold text-center
                   hover:bg-[#0B1D3A]/90 transition-colors"
               >

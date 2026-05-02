@@ -1,13 +1,12 @@
 /**
  * app/(public)/auctions/page.tsx — Auction Listing (RSC)
  */
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { AuctionTimer } from '@/components/auction/AuctionTimer'
 import { ProductCardSkeleton } from '@/components/shared/Skeleton'
 import { formatRupiah, formatDate } from '@/lib/utils/format'
 import { Gavel, Package, Filter } from 'lucide-react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
 
@@ -16,23 +15,24 @@ export const metadata: Metadata = {
     description: 'Ikut lelang barang bea cukai resmi. Update realtime, transparan, terjamin.',
 }
 
-// Revalidate setiap 30 detik agar status lelang selalu fresh
-export const revalidate = 30
+// Selalu fresh — tidak pakai cache
+export const dynamic = 'force-dynamic'
 
 export default async function AuctionsPage({
     searchParams,
 }: {
-    searchParams: { status?: string }
+    searchParams: Promise<{ status?: string }>
 }) {
+    const params = await searchParams
     const validStatus = ['active', 'upcoming', 'ended'] as const
 
     type Status = typeof validStatus[number]
 
-    const status = (validStatus.includes(searchParams.status as Status)
-        ? searchParams.status
+    const status = (validStatus.includes(params.status as Status)
+        ? params.status
         : 'active') as Status
 
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     const { data: auctions } = await supabase
         .from('auctions')
