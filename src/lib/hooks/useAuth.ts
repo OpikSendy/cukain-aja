@@ -44,7 +44,7 @@ export function useAuth(): AuthState {
     isAuthenticated: false,
   })
 
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
 
   useEffect(() => {
     let mounted = true
