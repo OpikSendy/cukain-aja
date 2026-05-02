@@ -27,6 +27,21 @@ const nextConfig: NextConfig & { [key: string]: any } = {  // ─── React St
         hostname: '*.supabase.in',
         pathname: '/storage/v1/object/public/**',
       },
+      {
+        // Placeholder images untuk development/seed
+        protocol: 'https',
+        hostname: 'placehold.co',
+      },
+      {
+        // Placeholder images alternatif
+        protocol: 'https',
+        hostname: 'via.placeholder.com',
+      },
+      {
+        // Picsum random photos
+        protocol: 'https',
+        hostname: 'picsum.photos',
+      },
     ],
     // Format modern untuk performa lebih baik
     formats: ['image/avif', 'image/webp'],
