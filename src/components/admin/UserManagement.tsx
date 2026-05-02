@@ -15,14 +15,7 @@ interface UserManagementProps {
   initialTab: string
 }
 
-async function updateUserStatus(userId: string, status: 'active' | 'suspended') {
-  const supabase = createClient()
-  const { error } = await supabase
-    .from('profiles')
-    .update({ status })
-    .eq('id', userId)
-  return { error: error?.message ?? null }
-}
+import { updateUserStatus } from '@/lib/actions/users'
 
 export function UserManagement({ pendingSellers: initial, allUsers: initialAll, initialTab }: UserManagementProps) {
   const [tab, setTab] = useState(initialTab)

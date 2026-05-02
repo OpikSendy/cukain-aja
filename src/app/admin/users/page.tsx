@@ -3,6 +3,7 @@
  */
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { UserManagement } from '@/components/admin/UserManagement'
 import type { Metadata } from 'next'
 
@@ -11,16 +12,19 @@ export const metadata: Metadata = { title: 'Kelola Pengguna — Admin Cukain Aja
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams: { tab?: string; search?: string }
+  searchParams: Promise<{ tab?: string; search?: string }>
 }) {
+  const params = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const activeTab = searchParams.tab ?? 'pending-sellers'
+  const adminClient = createAdminClient()
+
+  const activeTab = params.tab ?? 'pending-sellers'
 
   // Seller pending approval
-  const { data: pendingSellers } = await supabase
+  const { data: pendingSellers } = await adminClient
     .from('profiles')
     .select('*')
     .eq('role', 'seller')
@@ -28,7 +32,7 @@ export default async function AdminUsersPage({
     .order('created_at', { ascending: true })
 
   // All users
-  const { data: allUsers } = await supabase
+  const { data: allUsers } = await adminClient
     .from('profiles')
     .select('*')
     .order('created_at', { ascending: false })
