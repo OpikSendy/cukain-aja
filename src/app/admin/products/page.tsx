@@ -6,10 +6,12 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { AdminProductTable } from '@/components/admin/AdminProductTable'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Kelola Produk — Admin Cukain Aja' }
+export const dynamic = 'force-dynamic'
 
 const STATUS_FILTERS = [
     { label: 'Semua', value: '' },
@@ -23,19 +25,22 @@ const STATUS_FILTERS = [
 export default async function AdminProductsPage({
     searchParams,
 }: {
-    searchParams: { status?: string; search?: string }
+    searchParams: Promise<{ status?: string; search?: string }>
 }) {
+    const params = await searchParams
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
-    const { data: profile } = await supabase
+    const adminClient = createAdminClient()
+
+    const { data: profile } = await adminClient
         .from('profiles').select('role').eq('id', user.id).single()
     if (profile?.role !== 'admin') redirect('/unauthorized')
 
-    const activeStatus = searchParams.status ?? ''
+    const activeStatus = params.status ?? ''
 
-    let query = supabase
+    let query = adminClient
         .from('products')
         .select(`
       id, title, status, type, price, created_at, is_verified_beacukai,
@@ -46,12 +51,12 @@ export default async function AdminProductsPage({
         .limit(50)
 
     if (activeStatus) query = query.eq('status', activeStatus as never)
-    if (searchParams.search) query = query.ilike('title', `%${searchParams.search}%`)
+    if (params.search) query = query.ilike('title', `%${params.search}%`)
 
     const { data: products, count } = await query
 
     // Counts per status untuk tab badges
-    const { data: statusCounts } = await supabase
+    const { data: statusCounts } = await adminClient
         .from('products')
         .select('status')
 
@@ -105,7 +110,7 @@ export default async function AdminProductsPage({
 
             <AdminProductTable
                 products={products as any ?? []}
-                searchQuery={searchParams.search}
+                searchQuery={params.search}
             />
         </div>
     )

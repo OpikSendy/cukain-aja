@@ -4,7 +4,7 @@
  *
  * Tabel produk untuk admin dengan search + quick review action.
  */
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import Link from 'next/link'
 import { Search, ShieldCheck, ShieldOff, Package, ExternalLink } from 'lucide-react'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -43,6 +43,12 @@ export function AdminProductTable({ products, searchQuery }: AdminProductTablePr
     const [list, setList] = useState(products)
     const [isPending, startTransition] = useTransition()
     const [processingId, setProcessingId] = useState<string | null>(null)
+
+    // Sync list setiap kali props berubah (misal: klik tab filter)
+    useEffect(() => {
+        setList(products)
+        setLocalSearch(searchQuery ?? '')
+    }, [products, searchQuery])
 
     const filtered = localSearch
         ? list.filter(p => p.title.toLowerCase().includes(localSearch.toLowerCase()))
