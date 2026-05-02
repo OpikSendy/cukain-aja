@@ -101,7 +101,17 @@ export function LoginForm() {
         return
       }
 
-      redirectAfterLogin(result.data!.redirectPath)
+      const { userId, hasPin, redirectPath } = result.data!
+
+      // Simpan ke localStorage untuk PIN login next time
+      localStorage.setItem(USER_ID_STORAGE_KEY, userId)
+      if (hasPin) {
+        localStorage.setItem(HAS_PIN_STORAGE_KEY, 'true')
+      } else {
+        localStorage.removeItem(HAS_PIN_STORAGE_KEY)
+      }
+
+      window.location.href = redirectPath
     })
   }
 

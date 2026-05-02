@@ -276,7 +276,6 @@ export async function loginWithPin(
     return { data: null, error: 'User ID dan PIN wajib diisi' }
   }
 
-  // Verifikasi PIN via service
   const verifyResult = await verifyPin(userId, pin)
   if (verifyResult.error) {
     return { data: null, error: verifyResult.error }
@@ -287,14 +286,10 @@ export async function loginWithPin(
   if (pinData.isLocked) {
     const until = pinData.lockedUntil
       ? new Date(pinData.lockedUntil).toLocaleTimeString('id-ID', {
-        hour: '2-digit',
-        minute: '2-digit',
+        hour: '2-digit', minute: '2-digit',
       })
       : 'beberapa menit lagi'
-    return {
-      data: null,
-      error: `PIN terkunci sampai ${until}. Gunakan password untuk login.`,
-    }
+    return { data: null, error: `PIN terkunci sampai ${until}. Gunakan password untuk login.` }
   }
 
   if (!pinData.success) {
@@ -307,7 +302,6 @@ export async function loginWithPin(
     }
   }
 
-  // Ambil profile dan user email menggunakan admin client
   const { createAdminClient } = await import('@/lib/supabase/admin')
   const adminClient = createAdminClient()
 
@@ -322,45 +316,66 @@ export async function loginWithPin(
   if (profile?.status === 'suspended') {
     return { data: null, error: 'Akun kamu telah disuspend.' }
   }
-
   if (!user?.email) {
     return { data: null, error: 'Gagal mendapatkan data user untuk login.' }
   }
 
-  // Generate magic link untuk bypass password
+  // Determine dashboard path
   let redirectPath = '/user/dashboard'
   if (profile?.role === 'admin') redirectPath = '/admin/dashboard'
   else if (profile?.role === 'seller' && profile?.status === 'active') {
     redirectPath = '/seller/dashboard'
   }
 
-
-  const baseUrl = APP_CONFIG.url.endsWith('/')
-    ? APP_CONFIG.url.slice(0, -1)
-    : APP_CONFIG.url;
-
-  const finalRedirect = `${baseUrl}/auth/implicit?next=${encodeURIComponent(redirectPath)}`;
-
+  // Step 1: Generate magic link to get the hashed_token
   const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
     type: 'magiclink',
     email: user.email,
-    options: {
-      redirectTo: finalRedirect
-    }
   })
 
-  if (linkError || !linkData?.properties?.action_link) {
-    console.error('[auth/loginWithPin] Link generation failed:', linkError);
+  if (linkError || !linkData?.properties?.hashed_token) {
+    console.error('[loginWithPin] generateLink failed:', linkError)
+    return { data: null, error: 'Gagal membuat token login.' }
+  }
+
+  // Step 2: Exchange token for session SERVER-SIDE (sets cookies via next/headers)
+  const { cookies } = await import('next/headers')
+  const { createServerClient } = await import('@supabase/ssr')
+  const cookieStore = await cookies()
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll() },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.verifyOtp({
+    token_hash: linkData.properties.hashed_token,
+    type: 'magiclink',
+  })
+
+  if (sessionError || !sessionData.session) {
+    console.error('[loginWithPin] verifyOtp failed:', sessionError)
     return { data: null, error: 'Gagal membuat sesi login via PIN.' }
   }
 
+  // Session is now in cookies — client just needs to navigate
   return {
     data: {
       userId,
       role: (profile?.role as UserRole) ?? 'user',
       status: (profile?.status as UserStatus) ?? 'active',
       hasPin: true,
-      redirectPath: linkData.properties.action_link,
+      redirectPath, // ← dashboard path, NOT a magic link URL
     },
     error: null,
   }
