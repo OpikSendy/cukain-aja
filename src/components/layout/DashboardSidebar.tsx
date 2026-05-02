@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@/lib/types'
+import { PushNotificationToggle } from '@/components/shared/PushNotificationToggle'
 
 interface NavItem {
   label: string
@@ -104,6 +105,10 @@ export function DashboardSidebar({ role, name, pendingCount = 0 }: DashboardSide
             </Link>
           )
         })}
+
+        <div className="pt-4 mt-4 border-t border-slate-200">
+          <PushNotificationToggle />
+        </div>
       </div>
     </aside>
   )
