@@ -69,8 +69,15 @@ export default async function ProfilePage() {
 
       {/* Edit profile */}
       <div className="bg-white border border-slate-100 rounded-2xl p-6 space-y-4">
-        <h2 className="font-semibold text-[#0B1D3A]">Ubah Nama</h2>
-        <ProfileForm currentName={profile.name ?? ''} />
+        <h2 className="font-semibold text-[#0B1D3A]">Ubah Profil</h2>
+        <ProfileForm initialData={{
+            name: profile.name ?? '',
+            phone: (profile as any).phone,
+            address: (profile as any).address,
+            city: (profile as any).city,
+            province: (profile as any).province,
+            postal_code: (profile as any).postal_code,
+        }} />
       </div>
 
       {/* PIN Management */}
