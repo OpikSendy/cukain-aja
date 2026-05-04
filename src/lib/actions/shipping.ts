@@ -327,7 +327,7 @@ export async function getAllShipments(): Promise<ActionResult<ShipmentWithOrder[
       orders(
         id, total_price, user_id,
         order_items(quantity, price, products(id, title)),
-        profiles(name, email)
+        profiles(name)
       )
     `)
     .order('created_at', { ascending: false })
