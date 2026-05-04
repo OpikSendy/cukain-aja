@@ -23,8 +23,9 @@ export interface MidtransNotification {
 export type InternalPaymentStatus = 'pending' | 'paid' | 'canceled' | 'failed'
 
 function getAuthHeader(): string {
-  if (!MIDTRANS_CONFIG.serverKey) throw new Error('MIDTRANS_SERVER_KEY not configured')
-  return `Basic ${Buffer.from(`${MIDTRANS_CONFIG.serverKey}:`).toString('base64')}`
+  // Pastikan MIDTRANS_CONFIG.serverKey tidak memiliki spasi di awal/akhir
+  const key = MIDTRANS_CONFIG.serverKey.trim();
+  return `Basic ${Buffer.from(`${key}:`).toString('base64')}`
 }
 function getSnapUrl() {
   return MIDTRANS_CONFIG.isProduction
@@ -72,16 +73,23 @@ export async function createSnapToken(params: {
   try {
     const res = await fetch(getSnapUrl(), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: getAuthHeader() },
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: getAuthHeader()
+      },
       body: JSON.stringify(payload),
+      // Tambahkan timeout manual jika perlu
+      signal: AbortSignal.timeout(10000)
     })
     const data = await res.json()
     if (!res.ok) {
       return { data: null, error: data.error_messages?.join(', ') ?? 'Payment gateway error' }
     }
     return { data: { token: data.token, redirectUrl: data.redirect_url }, error: null }
-  } catch {
-    return { data: null, error: 'Gagal terhubung ke payment gateway' }
+  } catch (error: any) {
+    console.error('[Midtrans Service Error]:', error.message || error);
+    return { data: null, error: `Gagal terhubung ke Midtrans: ${error.message || 'Network Error'}` }
   }
 }
 
