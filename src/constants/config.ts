@@ -20,7 +20,7 @@ export const APP_CONFIG = {
 // ─── Midtrans ─────────────────────────────────────────────────────────────────
 
 export const MIDTRANS_CONFIG = {
-  serverKey: process.env.MIDTRANS_SERVER_KEY!,
+  serverKey: process.env.MIDTRANS_SERVER_KEY ?? '',
   clientKey: process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY ?? '',
   isProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true',
   snapUrl:
@@ -56,6 +56,25 @@ export const AUCTION_CONFIG = {
   minDurationHours: 1,
   maxDurationDays: 30,
   minBidIncrement: 1000, // Rp 1.000 minimum increment
+} as const
+
+// ─── Shipping ─────────────────────────────────────────────────────────────────
+
+export const COURIER_LIST = [
+  { id: 'jne',      label: 'JNE',          color: '#CC0000', trackUrl: 'https://www.jne.co.id/id/tracking/trace?awbNumber=' },
+  { id: 'jnt',      label: 'J&T Express',  color: '#E31E24', trackUrl: 'https://www.jet.co.id/track?awb=' },
+  { id: 'sicepat',  label: 'SiCepat',      color: '#F26522', trackUrl: 'https://www.sicepat.com/checkAwb?awb=' },
+  { id: 'wahana',   label: 'Wahana',       color: '#003087', trackUrl: 'https://www.wahana.com/tracking?awb=' },
+  { id: 'pos',      label: 'Pos Indonesia',color: '#FF6600', trackUrl: 'https://www.posindonesia.co.id/id/tracking?barcode=' },
+  { id: 'anteraja', label: 'AnterAja',     color: '#FFCC00', trackUrl: 'https://anteraja.id/tracking?awb=' },
+] as const
+
+export type CourierType = typeof COURIER_LIST[number]['id']
+
+export const SHIPPING_CONFIG = {
+  trackingIdPrefix: 'CKJ',
+  trackingIdLength: 6,
+  defaultEstimateDays: 3,
 } as const
 
 // ─── Routes ───────────────────────────────────────────────────────────────────

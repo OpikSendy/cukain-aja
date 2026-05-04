@@ -55,9 +55,7 @@ const nextConfig: NextConfig & { [key: string]: any } = {  // ─── React St
     // Error TypeScript akan gagalkan build di production — bagus!
     ignoreBuildErrors: false,
   },
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
+
 
   // ─── Redirects ────────────────────────────────────────────────────────────────
   async redirects() {
