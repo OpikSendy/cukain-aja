@@ -38,6 +38,15 @@ const GUEST_ONLY_ROUTES = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  if (pathname.startsWith('/api/webhooks')) {
+    const response = NextResponse.next();
+    // Bypass untuk Ngrok
+    response.headers.set('ngrok-skip-browser-warning', 'true');
+    // Bypass untuk LocalTunnel (loca.lt)
+    response.headers.set('Bypass-Tunnel-Reminder', 'true');
+    return response;
+  }
+
   // Buat response yang bisa dimodifikasi cookienya
   let supabaseResponse = NextResponse.next({ request })
 
@@ -166,6 +175,6 @@ export const config = {
      * - File dengan extension gambar
      * - api routes (handle sendiri)
      */
-    '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/webhooks|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)$).*)',
   ],
 }
