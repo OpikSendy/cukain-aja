@@ -46,7 +46,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
       id, status, total_price, payment_method, created_at, user_id,
       order_items(id, quantity, price, products(id, title, type, product_images(image_url, is_primary))),
       payments(payment_status, payment_url, midtrans_transaction_id, created_at),
-      profiles(name, email)
+      profiles(name)
     `)
     .eq('id', orderId)
     .single()
@@ -113,10 +113,6 @@ export default async function AdminOrderDetailPage({ params }: Props) {
           <div className="flex justify-between">
             <span className="text-slate-500">Nama</span>
             <span className="font-semibold text-[#0B1D3A]">{buyer?.name ?? '-'}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-slate-500">Email</span>
-            <span className="font-semibold text-[#0B1D3A]">{buyer?.email ?? '-'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-slate-500">Tanggal Order</span>

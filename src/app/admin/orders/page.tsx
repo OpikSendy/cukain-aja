@@ -35,16 +35,24 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
 
   const adminClient = createAdminClient()
 
-  // Ambil orders
   let query = adminClient
     .from('orders')
     .select(`
-      id, status, total_price, payment_method, created_at, user_id,
-      order_items(quantity, products(id, title)),
-      payments(payment_status),
-      profiles(name, email)
+      id, 
+      status, 
+      total_price, 
+      payment_method, 
+      created_at, 
+      user_id,
+      order_items(
+        id, 
+        quantity, 
+        price, 
+        products(id, title, type, product_images(image_url, is_primary))
+      ),
+      payments(payment_status, payment_url, midtrans_transaction_id, created_at),
+      profiles(name)
     `)
-    .order('created_at', { ascending: false })
     .order('created_at', { ascending: false })
 
   if (sp.status) {
@@ -52,7 +60,11 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
     query = query.eq('status', sp.status as any)
   }
 
-  const { data: orders } = await query
+  const { data: orders, error } = await query
+
+  if (error) {
+    console.error('Error fetching orders:', error)
+  }
 
   // Ambil shipments yang ada untuk highlight order yang sudah ada resi
   const { data: shipments } = await (adminClient as any)
@@ -175,7 +187,6 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                     {buyer && (
                       <p className="text-xs text-slate-500 mb-1.5">
                         <span className="font-semibold text-[#0B1D3A]">{buyer.name ?? 'Pembeli'}</span>
-                        {' · '}{buyer.email}
                       </p>
                     )}
 
