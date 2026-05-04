@@ -45,6 +45,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
       profiles(name, email)
     `)
     .order('created_at', { ascending: false })
+    .order('created_at', { ascending: false })
 
   if (sp.status) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -114,9 +115,8 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
             >
               {f.icon}
               {f.label}
-              <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
-              }`}>
+              <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                }`}>
                 {count}
               </span>
             </Link>
@@ -144,11 +144,10 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
               <Link
                 key={order.id}
                 href={`/admin/orders/${order.id}`}
-                className={`block bg-white border rounded-2xl p-5 hover:shadow-md transition-all group ${
-                  needsResi
-                    ? 'border-amber-300 bg-amber-50/40'
-                    : 'border-slate-100 hover:border-[#0B1D3A]/20'
-                }`}
+                className={`block bg-white border rounded-2xl p-5 hover:shadow-md transition-all group ${needsResi
+                  ? 'border-amber-300 bg-amber-50/40'
+                  : 'border-slate-100 hover:border-[#0B1D3A]/20'
+                  }`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
