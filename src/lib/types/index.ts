@@ -83,6 +83,15 @@ export type OrderWithItems = {
     payment_method: string | null
     user_id: string | null
 
+    shipping_name?: string | null
+    shipping_phone?: string | null
+    shipping_address?: string | null
+    shipping_city?: string | null
+    shipping_province?: string | null
+    shipping_postal_code?: string | null
+    shipping_cost?: number
+    shipping_zone?: string | null
+
     order_items: {
         id: string
         order_id: string | null
@@ -149,6 +158,14 @@ export interface CreateAuctionInput {
 export interface CreateOrderInput {
     productId: string
     quantity?: number
+    shippingName?: string
+    shippingPhone?: string
+    shippingAddress?: string
+    shippingCity?: string
+    shippingProvince?: string
+    shippingPostalCode?: string
+    shippingCost?: number
+    shippingZone?: string
 }
 
 // ─── UI State Types ───────────────────────────────────────────────────────────

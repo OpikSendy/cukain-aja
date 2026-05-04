@@ -527,20 +527,23 @@ export async function getProfile(): Promise<ActionResult<Profile>> {
   return { data: profile, error: null }
 }
 
-export async function updateProfile(name: string): Promise<ActionResult<Profile>> {
-  const trimmed = name?.trim()
-  if (!trimmed || trimmed.length < 2) {
-    return { data: null, error: 'Nama minimal 2 karakter.' }
-  }
-
+export async function updateProfile(data: { name?: string; phone?: string; address?: string; city?: string; province?: string; postal_code?: string }): Promise<ActionResult<Profile>> {
   const supabase = await createClient()
 
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { data: null, error: 'Unauthorized' }
 
+  const updates: Record<string, string> = {}
+  if (data.name?.trim()) updates.name = data.name.trim()
+  if (data.phone?.trim() !== undefined) updates.phone = data.phone.trim()
+  if (data.address?.trim() !== undefined) updates.address = data.address.trim()
+  if (data.city?.trim() !== undefined) updates.city = data.city.trim()
+  if (data.province?.trim() !== undefined) updates.province = data.province.trim()
+  if (data.postal_code?.trim() !== undefined) updates.postal_code = data.postal_code.trim()
+
   const { data: profile, error } = await supabase
     .from('profiles')
-    .update({ name: trimmed })
+    .update(updates)
     .eq('id', user.id)
     .select()
     .single()
