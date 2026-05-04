@@ -44,6 +44,12 @@ export async function POST(request: NextRequest) {
     const isValid = await verifyWebhookSignature(body)
     if (!isValid) {
         console.error('[webhook/midtrans] Invalid signature for order:', body.order_id)
+        console.error('[webhook/midtrans] Expected signature to match:', body.signature_key)
+        console.error('[webhook/midtrans] Body received:', JSON.stringify({
+             order_id: body.order_id,
+             status_code: body.status_code,
+             gross_amount: body.gross_amount
+        }))
         return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
     }
 

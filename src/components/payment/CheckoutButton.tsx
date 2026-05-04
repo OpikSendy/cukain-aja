@@ -101,13 +101,23 @@ export function CheckoutButton({
                     console.info('[snap] Payment success:', result)
                     notify.loading('Memverifikasi pembayaran...')
 
+                    // Beri jeda 2 detik agar webhook Midtrans / Core API punya waktu update
+                    await new Promise(resolve => setTimeout(resolve, 2000))
+
                     const verifyResult = await verifyPayment(orderId)
                     notify.dismiss()
 
                     if (verifyResult.data?.status === 'paid') {
                         notify.success('Pembayaran berhasil! 🎉', 'Pesanan kamu sedang diproses.')
                     } else {
-                        notify.info('Pembayaran sedang diproses', 'Kami akan update status segera.')
+                        // Coba verifikasi sekali lagi jika masih belum paid
+                        await new Promise(resolve => setTimeout(resolve, 2000))
+                        const retry = await verifyPayment(orderId)
+                        if (retry.data?.status === 'paid') {
+                             notify.success('Pembayaran berhasil! 🎉', 'Pesanan kamu sedang diproses.')
+                        } else {
+                             notify.info('Pembayaran sedang diproses', 'Kami akan update status segera.')
+                        }
                     }
 
                     router.push(`/user/orders/${orderId}?payment=finish`)

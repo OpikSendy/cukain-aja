@@ -9,6 +9,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createSnapToken, getTransactionStatus, mapMidtransStatus } from '@/lib/services/midtrans'
 import { isValidUUID } from '@/lib/utils/validators'
 import type { ActionResult } from '@/lib/types'
@@ -90,6 +91,18 @@ export async function initiatePayment(
     merchant_name: 'Cukain Aja',
   }))
 
+  const shippingCost = (order as any).shipping_cost as number | undefined
+  if (shippingCost && shippingCost > 0) {
+    items.push({
+      id: 'shipping',
+      name: 'Ongkos Kirim',
+      price: shippingCost,
+      quantity: 1,
+      category: 'Shipping',
+      merchant_name: 'Cukain Aja',
+    })
+  }
+
   // Create Snap token
   const snapResult = await createSnapToken({
     orderId,
@@ -145,6 +158,7 @@ export async function verifyPayment(
   if (!isValidUUID(orderId)) return { data: null, error: 'ID tidak valid' }
 
   const supabase = await createClient()
+  const adminClient = createAdminClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { data: null, error: 'Unauthorized' }
@@ -176,13 +190,13 @@ export async function verifyPayment(
 
   // Update DB jika status berubah
   if (internalStatus === 'paid') {
-    await supabase
+    await adminClient
       .from('orders')
       .update({ status: 'paid' })
       .eq('id', orderId)
       .eq('user_id', user.id)
 
-    await supabase
+    await adminClient
       .from('payments')
       .update({
         payment_status: 'settlement',
@@ -190,6 +204,22 @@ export async function verifyPayment(
         raw_response: statusResult.data,
       })
       .eq('order_id', orderId)
+
+    // Mark produk sebagai sold
+    const { data: orderItems } = await adminClient
+      .from('order_items')
+      .select('product_id, products(type)')
+      .eq('order_id', orderId)
+
+    for (const item of orderItems ?? []) {
+      const product = item.products as { type: string } | null
+      if (product?.type === 'fixed') {
+        await adminClient
+          .from('products')
+          .update({ status: 'sold' })
+          .eq('id', item.product_id as string)
+      }
+    }
   }
 
   const messages: Record<string, string> = {
