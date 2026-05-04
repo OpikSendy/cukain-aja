@@ -12,6 +12,7 @@ import { formatRupiah } from '@/lib/utils/format'
 import { ShieldCheck, Package, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { createOrder } from '@/lib/actions/orders'
+import { CheckoutAddressForm } from '@/components/payment/CheckoutAddressForm'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Checkout — Cukain Aja' }
@@ -19,7 +20,7 @@ export const metadata: Metadata = { title: 'Checkout — Cukain Aja' }
 export default async function CheckoutPage({
     searchParams,
 }: {
-    searchParams: Promise<{ product?: string; order?: string }>
+    searchParams: Promise<{ product?: string; order?: string; step?: string }>
 }) {
     const params = await searchParams
     const supabase = await createClient()
@@ -63,8 +64,9 @@ export default async function CheckoutPage({
                 <OrderSummary
                     title={firstItem?.products?.title ?? 'Produk'}
                     imageUrl={image?.image_url ?? null}
-                    price={Number(order.total_price)}
+                    price={Number(order.total_price) - (order as any).shipping_cost}
                     quantity={firstItem?.quantity ?? 1}
+                    shippingCost={(order as any).shipping_cost}
                 />
 
                 <CheckoutButton orderId={order.id} amount={Number(order.total_price)} />
@@ -91,14 +93,21 @@ export default async function CheckoutPage({
     const primaryImage = (product.product_images as { image_url: string | null; is_primary: boolean }[])
         .find(i => i.is_primary) ?? product.product_images[0]
 
-    // Auto-create order di server (tidak perlu manual di client)
-    const orderResult = await createOrder({ productId: product.id, quantity: 1 })
+    // Ambil alamat user
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, phone, address, city, province, postal_code')
+        .eq('id', user.id)
+        .single()
 
-    if (orderResult.error || !orderResult.data) {
-        redirect(`/products/${product.id}?error=${encodeURIComponent(orderResult.error ?? 'Gagal membuat order')}`)
-    }
-
-    const orderId = orderResult.data.orderId
+    const initialAddress = profile ? {
+        name: profile.name ?? '',
+        phone: (profile as any).phone ?? '',
+        address: (profile as any).address ?? '',
+        city: (profile as any).city ?? '',
+        province: (profile as any).province ?? '',
+        postal_code: (profile as any).postal_code ?? ''
+    } : undefined
 
     return (
         <div className="space-y-6 max-w-lg">
@@ -108,8 +117,8 @@ export default async function CheckoutPage({
             </Link>
 
             <div>
-                <h1 className="text-2xl font-bold text-[#0B1D3A]">Konfirmasi Pembelian</h1>
-                <p className="text-slate-500 text-sm mt-1">Periksa detail pesanan sebelum membayar.</p>
+                <h1 className="text-2xl font-bold text-[#0B1D3A]">Detail Pengiriman</h1>
+                <p className="text-slate-500 text-sm mt-1">Lengkapi alamat pengiriman untuk pesanan kamu.</p>
             </div>
 
             <OrderSummary
@@ -121,38 +130,22 @@ export default async function CheckoutPage({
                 isVerified={product.is_verified_beacukai as boolean}
             />
 
-            {/* Trust indicators */}
-            <div className="grid grid-cols-2 gap-3">
-                {[
-                    { icon: <ShieldCheck size={16} className="text-green-600" />, label: 'Dokumen Terverifikasi' },
-                    { icon: <Package size={16} className="text-blue-600" />, label: 'Pembayaran Aman' },
-                ].map((item) => (
-                    <div key={item.label}
-                        className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                        {item.icon}
-                        <span className="text-xs font-medium text-slate-700">{item.label}</span>
-                    </div>
-                ))}
-            </div>
+            <CheckoutAddressForm productId={product.id} quantity={1} initialData={initialAddress} />
 
-            <CheckoutButton orderId={orderId} amount={Number(product.price)} />
-
-            <p className="text-center text-xs text-slate-400">
-                Dengan membayar, kamu setuju dengan{' '}
-                <Link href="/terms" className="underline hover:text-slate-600">Syarat & Ketentuan</Link> Cukain Aja.
-            </p>
         </div>
     )
 }
+
+
 
 // ─── Order Summary Component ──────────────────────────────────────────────────
 
 function OrderSummary({
     title, imageUrl, price, quantity,
-    sellerName, isVerified,
+    sellerName, isVerified, shippingCost,
 }: {
     title: string; imageUrl: string | null; price: number; quantity: number
-    sellerName?: string; isVerified?: boolean
+    sellerName?: string; isVerified?: boolean; shippingCost?: number
 }) {
     return (
         <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
@@ -179,16 +172,18 @@ function OrderSummary({
 
             <div className="border-t border-slate-50 px-5 py-4 space-y-2 bg-slate-50/50">
                 <div className="flex justify-between text-sm text-slate-500">
-                    <span>Harga</span>
-                    <span>{formatRupiah(price)}</span>
+                    <span>Harga Produk</span>
+                    <span>{formatRupiah(price)} x {quantity}</span>
                 </div>
-                <div className="flex justify-between text-sm text-slate-500">
-                    <span>Jumlah</span>
-                    <span>{quantity}x</span>
-                </div>
+                {shippingCost !== undefined && (
+                    <div className="flex justify-between text-sm text-slate-500">
+                        <span>Ongkos Kirim</span>
+                        <span>{formatRupiah(shippingCost)}</span>
+                    </div>
+                )}
                 <div className="flex justify-between font-bold text-[#0B1D3A] pt-2 border-t border-slate-100">
-                    <span>Total</span>
-                    <span className="text-lg">{formatRupiah(price * quantity)}</span>
+                    <span>Total Keseluruhan</span>
+                    <span className="text-lg">{formatRupiah(price * quantity + (shippingCost ?? 0))}</span>
                 </div>
             </div>
         </div>
