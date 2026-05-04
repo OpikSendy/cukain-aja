@@ -39,6 +39,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { label: 'Dashboard',     href: '/admin/dashboard',     icon: <LayoutDashboard size={17} /> },
     { label: 'Verifikasi',    href: '/admin/verifications', icon: <FileCheck size={17} /> },
     { label: 'Produk',        href: '/admin/products',      icon: <Package size={17} /> },
+    { label: 'Pesanan',       href: '/admin/orders',        icon: <ShoppingBag size={17} /> },
     { label: 'Pengguna',      href: '/admin/users',         icon: <Users size={17} /> },
   ],
 }

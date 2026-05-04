@@ -1,18 +1,21 @@
 /**
- * app/(user)/orders/[id]/page.tsx — Complete with Payment
+ * app/(user)/orders/[id]/page.tsx — Complete with Payment + Shipping
  */
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { CheckoutButton } from '@/components/payment/CheckoutButton'
 import { PaymentStatusBanner } from '@/components/payment/PaymentStatusBanner'
+import { ShipmentCard } from '@/components/shipping/ShipmentCard'
 import { StatusBadge } from '@/components/shared/StatusBadge'
-import { formatRupiah, formatDateTime, ORDER_STATUS_LABEL } from '@/lib/utils/format'
+import { formatRupiah, formatDateTime } from '@/lib/utils/format'
 import {
     ArrowLeft, Package, CreditCard, Gavel,
     CheckCircle, Clock, Truck, ShieldCheck,
 } from 'lucide-react'
 import type { Metadata } from 'next'
+import type { ShipmentData } from '@/lib/actions/shipping'
 
 export const metadata: Metadata = { title: 'Detail Pesanan — Cukain Aja' }
 
@@ -43,6 +46,14 @@ export default async function OrderDetailPage(props: Props) {
         .single()
 
     if (!order) notFound()
+
+    // Ambil data shipment (jika sudah dikirim)
+    const adminClient = createAdminClient()
+    const { data: shipment } = await (adminClient as any)
+        .from('shipments')
+        .select('*')
+        .eq('order_id', params.id)
+        .single()
 
     type ProductType = {
         id: string; title: string; type: string
@@ -256,6 +267,36 @@ export default async function OrderDetailPage(props: Props) {
                     </div>
                 )}
             </div>
+
+            {/* Shipping card — tampil setelah paid */}
+            {shipment && (
+                <ShipmentCard
+                    shipment={shipment as ShipmentData}
+                    orderId={order.id}
+                    orderStatus={order.status!}
+                />
+            )}
+
+            {/* Hint tracking publik */}
+            {shipment && (
+                <div className="bg-[#0B1D3A]/3 border border-[#0B1D3A]/10 rounded-2xl px-5 py-3.5
+                    flex items-center justify-between gap-3">
+                    <div>
+                        <p className="text-xs font-semibold text-[#0B1D3A]">Lacak paket dari mana saja</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                            Gunakan nomor resi <code className="font-mono text-[#0B1D3A]">{shipment.internal_tracking_id}</code>
+                        </p>
+                    </div>
+                    <a
+                        href={`/track?id=${shipment.internal_tracking_id}`}
+                        target="_blank"
+                        className="shrink-0 px-4 py-2 bg-[#0B1D3A] text-white text-xs font-bold
+                            rounded-xl hover:bg-[#1a3a6e] transition-colors"
+                    >
+                        Lacak Paket
+                    </a>
+                </div>
+            )}
         </div>
     )
 }

@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 const NAV_LINKS = [
   { label: 'Produk', href: '/products' },
   { label: 'Lelang', href: '/auctions' },
+  { label: 'Lacak Paket', href: '/track' },
 ]
 
 const ROLE_DASHBOARD: Record<string, { label: string; href: string }> = {
