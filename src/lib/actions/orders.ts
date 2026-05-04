@@ -47,9 +47,17 @@ export async function createOrder(input: CreateOrderInput): Promise<ActionResult
     .from('orders')
     .insert({
       user_id: user.id,
-      total_price: totalPrice,
+      total_price: totalPrice + (input.shippingCost ?? 0),
       status: 'pending',
       payment_method: 'midtrans',
+      shipping_name: input.shippingName,
+      shipping_phone: input.shippingPhone,
+      shipping_address: input.shippingAddress,
+      shipping_city: input.shippingCity,
+      shipping_province: input.shippingProvince,
+      shipping_postal_code: input.shippingPostalCode,
+      shipping_cost: input.shippingCost ?? 0,
+      shipping_zone: input.shippingZone,
     })
     .select()
     .single()

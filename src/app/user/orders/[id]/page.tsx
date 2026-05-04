@@ -268,6 +268,24 @@ export default async function OrderDetailPage(props: Props) {
                 )}
             </div>
 
+            {/* Shipping Address card */}
+            {(order as any).shipping_name && (
+                <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
+                    <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-50">
+                        <Truck size={17} className="text-slate-400" />
+                        <h2 className="text-sm font-semibold text-[#0B1D3A]">Alamat Pengiriman</h2>
+                    </div>
+                    <div className="px-5 py-4 space-y-2 text-sm">
+                        <p className="font-semibold text-[#0B1D3A]">{(order as any).shipping_name}</p>
+                        <p className="text-slate-500">{(order as any).shipping_phone}</p>
+                        <p className="text-slate-500 mt-2">
+                            {(order as any).shipping_address}<br />
+                            {(order as any).shipping_city}, {(order as any).shipping_province} {(order as any).shipping_postal_code}
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* Shipping card — tampil setelah paid */}
             {shipment && (
                 <ShipmentCard
